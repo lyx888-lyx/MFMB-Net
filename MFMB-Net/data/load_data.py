@@ -11,6 +11,29 @@ __all__ = ['MMDataLoader']
 
 logger = logging.getLogger('MSA')
 
+'''
+    这是数据集和缺失模态生成的核心。
+    它的职责不是只“读数据”，而是：
+    读取原始预处理好的 pkl
+    为每个样本生成缺失版本
+    返回完整模态 + 缺失模态 + mask + label
+    数据到底是什么
+    这个仓库不是直接吃“原始视频、原始语音、原始文本”的。
+    对文本
+        根据 BERT 的 attention mask 推出真实长度
+        按 missing rate 随机把一部分 token 置缺
+        缺失 token 用 100 这个 UNK token id 代替
+        CLS 和 SEP 会强制保留
+    对音频和视觉
+        根据长度生成有效帧 mask
+        按 missing rate 随机把一部分有效帧删掉
+        删除方式是直接置零
+    所以这个项目里的缺失模拟，本质是：
+        文本：token replacement
+        音频 / 视觉：frame zero-out
+'''
+
+
 class MMDataset(Dataset):
     def __init__(self, args, mode='train'):
         self.mode = mode

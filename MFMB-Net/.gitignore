@@ -1,0 +1,11 @@
+/logs
+__pycache__/
+/results/paperResults
+/results/models
+*.pyc
+*.pkl
+*.pt
+*.pth
+*.log
+*.ckpt
+*.h5

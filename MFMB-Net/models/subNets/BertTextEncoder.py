@@ -24,12 +24,11 @@ class BertTextEncoder(nn.Module):
         # directory is fine
         # pretrained_weights = '/home/sharing/disk3/pretrained_embedding/Chinese/bert/pytorch'
         if language == 'en':
-            self.tokenizer = tokenizer_class.from_pretrained('/root/autodl-tmp/MFMB_Net/pretrained_berts/bert_en', do_lower_case=True)
-            self.model = model_class.from_pretrained('/root/autodl-tmp/MFMB_Net/pretrained_berts/bert_en')
+            self.tokenizer = tokenizer_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_en/', do_lower_case=True)
+            self.model = model_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_en/')
         elif language == 'cn':
-            self.tokenizer = tokenizer_class.from_pretrained('/root/autodl-tmp/MFMB_Net/pretrained_berts/bert_cn')
-            self.model = model_class.from_pretrained('/root/autodl-tmp/MFMB_Net/pretrained_berts/bert_cn')
-        
+            self.tokenizer = tokenizer_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_cn/', do_lower_case=True)
+            self.model = model_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_cn/')
         self.use_finetune = use_finetune
     
     def get_tokenizer(self):

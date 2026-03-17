@@ -1,0 +1,18 @@
+# MFMB-Net recommended pip environment
+# Recommended Python: 3.8 - 3.10
+#
+# Note on PyTorch:
+# - This project is easier to reproduce with torch 1.13.1.
+# - If you need a CUDA build, replace the torch line with the official wheel, e.g.:
+#   CUDA 11.7: torch==1.13.1+cu117  (with --extra-index-url https://download.pytorch.org/whl/cu117)
+#   CPU only : torch==1.13.1+cpu    (with --extra-index-url https://download.pytorch.org/whl/cpu)
+
+
+numpy==1.23.5
+pandas==1.5.3
+scikit-learn==1.3.2
+scipy==1.10.1
+tqdm==4.66.5
+transformers==4.31.0
+einops==0.7.0
+nvidia-ml-py==13.590.48

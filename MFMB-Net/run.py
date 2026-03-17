@@ -18,6 +18,27 @@ from config.config_regression import ConfigRegression
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+'''
+    总入口：
+        负责：
+        解析命令行参数
+        加载配置
+        自动选 GPU
+        构建 dataloader
+        构建模型
+        调 trainer 训练
+        训练完加载最佳权重
+        在 test 上评估
+        多个 seed 跑完后，把均值和方差写进 csv
+        run.py → config → data/load_data.py → models/AMIO.py → models/missingTask/MFMB_NET/model.py → alignment + generator + fusion → trains/missingTask/MFMB_NET.py → metricsTop.py
+        实验入口层：怎么跑实验
+        数据层：怎么把完整模态加工成“缺失模态输入”
+        模型层：怎么对齐、重建、融合
+        训练层：loss 怎么算、什么时候保存最好模型
+        评估层：指标怎么算
+'''
+
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
