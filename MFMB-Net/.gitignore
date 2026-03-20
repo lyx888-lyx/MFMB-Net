@@ -2,6 +2,7 @@
 __pycache__/
 /results/paperResults
 /results/models
+/calc
 *.pyc
 *.pkl
 *.pt
