@@ -33,11 +33,11 @@ class ConfigRegression():
                             ))
     
     def __datasetCommonParams(self):
-        root_dataset_dir = '/root/autodl-tmp/MFMB_Net/MMSA'
+        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
         tmp = {
             'mosi':{
                 'aligned': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/Processed/aligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/aligned_50.pkl'),
                     'seq_lens': (50, 50, 50),
                     # (text, audio, video)
                     'feature_dims': (768, 5, 20),
@@ -47,7 +47,7 @@ class ConfigRegression():
                     'KeyEval': 'Loss' 
                 },
                 'unaligned': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/Processed/unaligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/unaligned_50.pkl'),
                     'seq_lens': None,
                     # (text, audio, video)
                     'feature_dims': (768, 5, 20),
@@ -57,7 +57,7 @@ class ConfigRegression():
                     'KeyEval': 'Loss' 
                 },
                 'aligned_missing': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/Processed/aligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSI//aligned_50.pkl'),
                     'seq_lens': (50, 50, 50),
                     'feature_dims': (768, 5, 20),
                     'train_samples': 1284,
@@ -68,7 +68,7 @@ class ConfigRegression():
                     'missing_seed': (111, 1111, 11111),
                 },
                 'unaligned_missing': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/Processed/unaligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSI/unaligned_50.pkl'),
                     'seq_lens': None,
                     'feature_dims': (768, 5, 20),
                     'train_samples': 1284,
@@ -105,7 +105,7 @@ class ConfigRegression():
             },
             'mosei': {
                 'aligned': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/Processed/aligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/aligned_50.pkl'),
                     'seq_lens': (50, 50, 50),
                     # (text, audio, video)
                     'feature_dims': (768, 74, 35),
@@ -115,7 +115,7 @@ class ConfigRegression():
                     'KeyEval': 'Loss'
                 },
                 'unaligned': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/Processed/unaligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/unaligned_50.pkl'),
                     'seq_lens': None,
                     # (text, audio, video)
                     'feature_dims': (768, 74, 35),
@@ -125,7 +125,7 @@ class ConfigRegression():
                     'KeyEval': 'Loss'
                 },
                 'aligned_missing': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/Processed/aligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/aligned_50.pkl'),
                     'seq_lens': (50, 50, 50),
                     'feature_dims': (768, 74, 35),
                     'train_samples': 16326,
@@ -136,7 +136,7 @@ class ConfigRegression():
                     'missing_seed': (111, 1111, 11111),
                 },
                 'unaligned_missing': {
-                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/Processed/unaligned_50.pkl'),
+                    'dataPath': os.path.join(root_dataset_dir, 'MOSEI/unaligned_50.pkl'),
                     'seq_lens': None,
                     'feature_dims': (768, 74, 35),
                     'train_samples': 16326,

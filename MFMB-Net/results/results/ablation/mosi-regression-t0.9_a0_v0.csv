@@ -1,0 +1,2 @@
+Model,MissingText,MissingAudio,MissingVision,Has0_acc_2,Has0_F1_score,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7,MAE,Corr,Loss
+mfmb_net,0.9,0.0,0.0,"(49.26, 2.84)","(41.84, 9.19)","(47.66, 3.56)","(40.35, 10.11)","(16.67, 0.88)","(16.62, 0.81)","(144.46, 6.16)","(13.35, 6.12)","(144.46, 6.16)"

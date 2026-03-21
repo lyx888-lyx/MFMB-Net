@@ -3,43 +3,79 @@ import gc
 import time
 import random
 import logging
+import argparse
+from typing import List
+
 import torch
 import pynvml
-import argparse
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
-from multiprocessing import Pool
 
 from models.AMIO import AMIO
 from trains.ATIO import ATIO
 from data.load_data import MMDataLoader
 from config.config_regression import ConfigRegression
 
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
-def setup_seed(seed):
+
+def setup_seed(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
     torch.backends.cudnn.deterministic = True
 
-def run(args):
 
-    '''
-    feature_dims(768, 5, 20)
-    '''
+def parse_gpu_ids(raw) -> List[int]:
+    if isinstance(raw, list):
+        return raw
+    if raw is None:
+        return []
+    text = str(raw).strip()
+    if text == "":
+        return []
+    return [int(x) for x in text.split(',') if x.strip() != ""]
+
+
+def parse_seeds(raw) -> List[int]:
+    if isinstance(raw, list):
+        return [int(x) for x in raw]
+    return [int(x.strip()) for x in str(raw).split(',') if x.strip()]
+
+
+def fmt_rate(x: float) -> str:
+    text = f"{float(x):.4f}".rstrip('0').rstrip('.')
+    return text if text else '0'
+
+
+def make_missing_tag(missing_rate) -> str:
+    t, a, v = missing_rate
+    return f"t{fmt_rate(t)}_a{fmt_rate(a)}_v{fmt_rate(v)}"
+
+
+def resolve_missing_rate(args):
+    t = args.missing if args.missing_t is None else args.missing_t
+    a = args.missing if args.missing_a is None else args.missing_a
+    v = args.missing if args.missing_v is None else args.missing_v
+    return (float(t), float(a), float(v))
+
+
+def build_run_name(args):
+    base = f"{args.modelName}-{args.datasetName}-{args.train_mode}-{make_missing_tag(args.missing_rate)}"
+    if args.run_tag:
+        base = f"{base}-{args.run_tag}"
+    return base
+
+
+def run(args):
     if not os.path.exists(args.model_save_dir):
-        os.makedirs(args.model_save_dir)
-    args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
-    # indicate used gpu
+        os.makedirs(args.model_save_dir, exist_ok=True)
+
     if len(args.gpu_ids) == 0 and torch.cuda.is_available():
-        # load free-most gpu
         pynvml.nvmlInit()
-        device_count=pynvml.nvmlDeviceGetCount();
+        device_count = pynvml.nvmlDeviceGetCount()
         dst_gpu_id, min_mem_used = 0, 1e16
-        #for g_id in [0, 1]:
         for g_id in range(device_count):
             handle = pynvml.nvmlDeviceGetHandleByIndex(g_id)
             meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
@@ -50,130 +86,133 @@ def run(args):
         print(f'Find gpu: {dst_gpu_id}, use memory: {min_mem_used}!')
         logger.info(f'Find gpu: {dst_gpu_id}, with memory: {min_mem_used} left!')
         args.gpu_ids.append(dst_gpu_id)
-    # device
+
     using_cuda = len(args.gpu_ids) > 0 and torch.cuda.is_available()
     logger.info("Let's use %d GPUs!" % len(args.gpu_ids))
     device = torch.device('cuda:%d' % int(args.gpu_ids[0]) if using_cuda else 'cpu')
     args.device = device
-    # add tmp tensor to increase the temporary consumption of GPU
-    #tmp_tensor = torch.zeros((100, 100)).to(args.device)
-    # load data and models
+
     dataloader = MMDataLoader(args)
     model = AMIO(args).to(device)
-
-    #del tmp_tensor
 
     def count_parameters(model):
         answer = 0
         for p in model.parameters():
             if p.requires_grad:
                 answer += p.numel()
-                # print(p)
         return answer
+
     logger.info(f'The model has {count_parameters(model)} trainable parameters')
     atio = ATIO().getTrain(args)
-    # do train
     atio.do_train(model, dataloader)
-    # load pretrained model
-    assert os.path.exists(args.model_save_path)
-    model.load_state_dict(torch.load(args.model_save_path))
+
+    assert os.path.exists(args.model_save_path), f"Model checkpoint not found: {args.model_save_path}"
+    model.load_state_dict(torch.load(args.model_save_path, map_location=device))
     model.to(device)
-    # do test
-    if args.is_tune:
-        # using valid dataset to tune hyper parameters
-        results = atio.do_test(model, dataloader['test'], mode="TEST")
-    else:
-        results = atio.do_test(model, dataloader['test'], mode="TEST")
+    results = atio.do_test(model, dataloader['test'], mode="TEST")
 
     del model
     torch.cuda.empty_cache()
     gc.collect()
-    time.sleep(5)
- 
+    time.sleep(2)
     return results
+
 
 def run_normal(args):
     args.res_save_dir = os.path.join(args.res_save_dir, 'normals')
     init_args = args
     model_results = []
     seeds = args.seeds
-    missing_rate = 0.0
-    # run results
+
     for i, seed in enumerate(seeds):
         args = init_args
-        # load config
         config = ConfigRegression(args)
         args = config.get_config()
-        if i == 0 and args.data_missing:
-            missing_rate = str(args.missing_rate[0])
-        setup_seed(seed)
+        args.missing_rate = init_args.missing_rate
+        args.gpu_ids = list(init_args.gpu_ids)
+        args.seeds = init_args.seeds
+        args.run_tag = init_args.run_tag
         args.seed = seed
-        logger.info('Start running %s...' %(args.modelName))
+        args.cur_time = i + 1
+        args.experiment_name = build_run_name(args)
+        args.model_save_path = os.path.join(args.model_save_dir, f'{args.experiment_name}.pth')
+        setup_seed(seed)
+        logger.info('Start running %s...' % (args.modelName))
         logger.info(args)
-        # runnning
-        args.cur_time = i+1
         test_results = run(args)
-        # restore results
         model_results.append(test_results)
+
     criterions = list(model_results[0].keys())
-    # load other results
-    save_path = os.path.join(args.res_save_dir, \
-                        f'{args.datasetName}-{args.train_mode}-{missing_rate}.csv')
     if not os.path.exists(args.res_save_dir):
-        os.makedirs(args.res_save_dir)
-    if os.path.exists(save_path):
-        df = pd.read_csv(save_path)
-    else:
-        df = pd.DataFrame(columns=["Model"] + criterions)
-    # save results
-    res = [args.modelName]
+        os.makedirs(args.res_save_dir, exist_ok=True)
+
+    csv_name = f'{args.datasetName}-{args.train_mode}-{make_missing_tag(args.missing_rate)}'
+    if args.run_tag:
+        csv_name += f'-{args.run_tag}'
+    csv_name += '.csv'
+    save_path = os.path.join(args.res_save_dir, csv_name)
+
+    df = pd.DataFrame(columns=["Model", "MissingText", "MissingAudio", "MissingVision"] + criterions)
+    res = [args.modelName, args.missing_rate[0], args.missing_rate[1], args.missing_rate[2]]
     for c in criterions:
         values = [r[c] for r in model_results]
-        mean = round(np.mean(values)*100, 2)
-        std = round(np.std(values)*100, 2)
+        mean = round(np.mean(values) * 100, 2)
+        std = round(np.std(values) * 100, 2)
         res.append((mean, std))
     df.loc[len(df)] = res
     df.to_csv(save_path, index=None)
-    logger.info('Results are added to %s...' %(save_path))
+    logger.info('Results are written to %s...' % (save_path))
+
 
 def set_log(args):
-    log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
-    # set logging
-    logger = logging.getLogger() 
-    logger.setLevel(logging.DEBUG)
+    os.makedirs('logs', exist_ok=True)
+    log_file_name = f'{args.modelName}-{args.datasetName}-{make_missing_tag(args.missing_rate)}'
+    if args.run_tag:
+        log_file_name += f'-{args.run_tag}'
+    log_file_path = os.path.join('logs', f'{log_file_name}.log')
 
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
     for ph in logger.handlers:
         logger.removeHandler(ph)
-    # add FileHandler to log file
+
     formatter_file = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter_file)
     logger.addHandler(fh)
+
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(formatter_file)
+    logger.addHandler(sh)
     return logger
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_mode', type=str, default="regression",
-                        help='regression')
-    parser.add_argument('--modelName', type=str, default='mfmb_net',
-                        help='support mfmb_net')
-    parser.add_argument('--datasetName', type=str, default='mosi',
-                        help='support mosi/mosei')
-    parser.add_argument('--num_workers', type=int, default=0,
-                        help='num workers of loading data')
-    parser.add_argument('--model_save_dir', type=str, default='results/models',
-                        help='path to save results.')
-    parser.add_argument('--res_save_dir', type=str, default='results/results',
-                        help='path to save results.')
-    parser.add_argument('--gpu_ids', type=list, default=[],
-                        help='indicates the gpus will be used. If none, the most-free gpu will be used!')
-    parser.add_argument('--missing', type=float, default=0.0)
-    return parser.parse_args()
+    parser.add_argument('--train_mode', type=str, default='regression', help='regression')
+    parser.add_argument('--modelName', type=str, default='mfmb_net', help='support mfmb_net')
+    parser.add_argument('--datasetName', type=str, default='mosi', help='support mosi/mosei')
+    parser.add_argument('--num_workers', type=int, default=0, help='num workers of loading data')
+    parser.add_argument('--model_save_dir', type=str, default='results/models', help='path to save models.')
+    parser.add_argument('--res_save_dir', type=str, default='results/results', help='path to save results.')
+    parser.add_argument('--gpu_ids', type=str, default='', help='comma-separated GPU ids. Empty means auto-select.')
+    parser.add_argument('--missing', type=float, default=0.0, help='legacy shared missing rate for all 3 modalities')
+    parser.add_argument('--missing_t', type=float, default=None, help='text missing rate')
+    parser.add_argument('--missing_a', type=float, default=None, help='audio missing rate')
+    parser.add_argument('--missing_v', type=float, default=None, help='vision missing rate')
+    parser.add_argument('--seeds', type=str, default='111,1111,11111', help='comma-separated seeds')
+    parser.add_argument('--run_tag', type=str, default='', help='optional suffix for grouping a batch of runs')
+    args = parser.parse_args()
+    args.gpu_ids = parse_gpu_ids(args.gpu_ids)
+    args.seeds = parse_seeds(args.seeds)
+    args.missing_rate = resolve_missing_rate(args)
+    return args
+
 
 if __name__ == '__main__':
     args = parse_args()
-    args.missing_rate = tuple([args.missing, args.missing, args.missing])
-    global logger; logger = set_log(args)
-    args.seeds = [111, 1111, 11111]
+    global logger
+    logger = set_log(args)
     run_normal(args)
