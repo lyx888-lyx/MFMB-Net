@@ -8,6 +8,7 @@ from models.missingTask.MFMB_NET.generator import Generator
 from models.subNets.BertTextEncoder import BertTextEncoder
 
 from models.missingTask.MFMB_NET.fusion_599 import Fusion
+from models.missingTask.MFMB_NET.decalign_adapter import DecAlignAdapter
 
 # CMD Loss
 class CMD(nn.Module):
@@ -94,6 +95,9 @@ class MFMB_NET(nn.Module):
         args.fusion_t_in = args.fusion_a_in = args.fusion_v_in = args.dst_feature_dim_nheads[0] * 3
 
         self.fusion_subnet = Fusion(args)
+        self.use_decalign = getattr(args, 'use_decalign', False)
+        if self.use_decalign:
+            self.decalign_adapter = DecAlignAdapter(args, in_dim=args.dst_feature_dim_nheads[0] * 3)
         
 
     def forward(self, text, audio, vision):
@@ -115,6 +119,18 @@ class MFMB_NET(nn.Module):
         text_h, audio_h, vision_h, text_h_g, audio_h_g, vision_h_g = self.align_subnet(text_m, audio_m, vision_m)
         #[batch_size, seq_len, d]
 
+        dec_loss = torch.zeros(1, device=self.args.device).squeeze()
+        hete_loss = torch.zeros(1, device=self.args.device).squeeze()
+        homo_loss = torch.zeros(1, device=self.args.device).squeeze()
+        if self.use_decalign:
+            align_out = self.decalign_adapter(text_h, audio_h, vision_h, text_mask, audio_mask, vision_mask)
+            text_h = align_out['text_refined']
+            audio_h = align_out['audio_refined']
+            vision_h = align_out['vision_refined']
+            dec_loss = align_out['dec_loss']
+            hete_loss = align_out['hete_loss']
+            homo_loss = align_out['homo_loss']
+
         if not self.args.without_generator:
         
             text_ = self.generator_t(text_h_g)
@@ -134,9 +150,9 @@ class MFMB_NET(nn.Module):
             #torch.Size([24, 1])
             #24,1
 
-            return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
+            return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss, dec_loss, hete_loss, homo_loss
             
         else:
             prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))
-            return prediction, torch.Tensor([0]).to(self.args.device)
+            return prediction, torch.Tensor([0]).to(self.args.device), dec_loss, hete_loss, homo_loss
         

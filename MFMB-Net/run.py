@@ -107,6 +107,8 @@ def run_normal(args):
         if i == 0 and args.data_missing:
             missing_rate = str(args.missing_rate[0])
         setup_seed(seed)
+        for field in ['use_decalign', 'lambda_dec', 'lambda_hete', 'lambda_homo', 'align_num_prototypes', 'align_ot_reg', 'align_ot_iters', 'align_residual_ratio', 'align_mmd_bandwidth', 'align_warmup_epochs', 'align_ramp_epochs', 'align_detach_text_anchor', 'align_anchor_cosine_weight']:
+            setattr(args, field, getattr(init_args, field))
         args.seed = seed
         logger.info('Start running %s...' %(args.modelName))
         logger.info(args)
@@ -169,6 +171,19 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument('--use_decalign', action='store_true', help='enable DecAlign-style adapter before fusion')
+    parser.add_argument('--lambda_dec', type=float, default=0.01)
+    parser.add_argument('--lambda_hete', type=float, default=0.03)
+    parser.add_argument('--lambda_homo', type=float, default=0.01)
+    parser.add_argument('--align_num_prototypes', type=int, default=8)
+    parser.add_argument('--align_ot_reg', type=float, default=0.1)
+    parser.add_argument('--align_ot_iters', type=int, default=20)
+    parser.add_argument('--align_residual_ratio', type=float, default=0.30)
+    parser.add_argument('--align_mmd_bandwidth', type=float, default=10.0)
+    parser.add_argument('--align_warmup_epochs', type=int, default=10)
+    parser.add_argument('--align_ramp_epochs', type=int, default=5)
+    parser.add_argument('--align_detach_text_anchor', action='store_true', default=True)
+    parser.add_argument('--align_anchor_cosine_weight', type=float, default=0.5)
     return parser.parse_args()
 
 if __name__ == '__main__':

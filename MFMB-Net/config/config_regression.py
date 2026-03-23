@@ -169,6 +169,15 @@ class ConfigRegression():
                 # use attention mask for Transformer
                 'attn_mask': True, 
                 'update_epochs': 4,
+                'use_decalign': False,
+                'lambda_dec': 0.01,
+                'lambda_hete': 0.03,
+                'lambda_homo': 0.01,
+                'align_num_prototypes': 8,
+                'align_ot_reg': 0.1,
+                'align_ot_iters': 20,
+                'align_residual_ratio': 0.30,
+                'align_mmd_bandwidth': 1.0,
             },
             # dataset
             'datasetParas':{

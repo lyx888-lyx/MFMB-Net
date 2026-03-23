@@ -44,12 +44,23 @@ class MFMB_NET():
         epochs, best_epoch = 0, 0
         min_or_max = 'min' if self.args.KeyEval in ['Loss'] else 'max'
         best_valid = 1e8 if min_or_max == 'min' else 0
+
+        def get_align_scale(epoch):
+            warmup = getattr(self.args, 'align_warmup_epochs', 10)
+            ramp = getattr(self.args, 'align_ramp_epochs', 5)
+            if epoch <= warmup:
+                return 0.0
+            if ramp <= 0:
+                return 1.0
+            return min(1.0, float(epoch - warmup) / float(ramp))
+
         while True:  
             epochs += 1
+            align_scale = get_align_scale(epochs)
             y_pred, y_true = [], []
             losses = []
             model.train()
-            train_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
+            train_loss, predict_loss, generate_loss, align_loss_total = 0.0, 0.0, 0.0, 0.0
             left_epochs = self.args.update_epochs
             with tqdm(dataloader['train']) as td:
                 for batch_data in td:
@@ -74,12 +85,14 @@ class MFMB_NET():
                         labels = labels.view(-1).long()
                     else:
                         labels = labels.view(-1, 1)
-                    prediction, gen_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
+                    prediction, gen_loss, dec_loss, hete_loss, homo_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
                     pred_loss = self.criterion(prediction, labels)
+                    raw_align_loss = self.args.lambda_dec * dec_loss + self.args.lambda_hete * hete_loss + self.args.lambda_homo * homo_loss
+                    align_loss = align_scale * raw_align_loss
                     if epochs > 1:
-                        loss = pred_loss + gen_loss
+                        loss = pred_loss + gen_loss + align_loss
                     else:
-                        loss = pred_loss
+                        loss = pred_loss + align_loss
                     loss.backward()
                     
                     if self.args.grad_clip != -1.0:
@@ -89,6 +102,7 @@ class MFMB_NET():
                     train_loss += loss.item()
                     predict_loss += pred_loss.item()
                     generate_loss += gen_loss.item()
+                    align_loss_total += align_loss.item()
 
                     y_pred.append(prediction.cpu())
                     y_true.append(labels.cpu())
@@ -100,13 +114,14 @@ class MFMB_NET():
             train_loss = train_loss / len(dataloader['train'])
             predict_loss = predict_loss / len(dataloader['train'])
             generate_loss = generate_loss / len(dataloader['train'])
+            align_loss_total = align_loss_total / len(dataloader['train'])
             
             pred, true = torch.cat(y_pred), torch.cat(y_true)
             train_results = self.metrics(pred, true)
-            logger.info("TRAIN-(%s) (%d/%d/%d)>> loss: %.4f(pred: %.4f; gen: %.4f) %s" % (self.args.modelName, \
-                        epochs - best_epoch, epochs, self.args.cur_time, train_loss, predict_loss, generate_loss, dict_to_str(train_results)))
+            logger.info("TRAIN-(%s) (%d/%d/%d)>> loss: %.4f(pred: %.4f; gen: %.4f; align: %.4f; align_scale: %.2f) %s" % (self.args.modelName, \
+                        epochs - best_epoch, epochs, self.args.cur_time, train_loss, predict_loss, generate_loss, align_loss_total, align_scale, dict_to_str(train_results)))
             
-            val_results = self.do_test(model, dataloader['valid'], mode="VAL")
+            val_results = self.do_test(model, dataloader['valid'], mode="VAL", align_scale=align_scale)
             cur_valid = val_results[self.args.KeyEval]
             scheduler.step(val_results['Loss'])
 
@@ -119,10 +134,10 @@ class MFMB_NET():
             if epochs - best_epoch >= self.args.early_stop:
                 return
 
-    def do_test(self, model, dataloader, mode="VAL"):
+    def do_test(self, model, dataloader, mode="VAL", align_scale=1.0):
         model.eval()
         y_pred, y_true = [], []
-        eval_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
+        eval_loss, predict_loss, generate_loss, align_loss_total = 0.0, 0.0, 0.0, 0.0
         with torch.no_grad():
             with tqdm(dataloader) as td:
                 for batch_data in td:
@@ -146,15 +161,18 @@ class MFMB_NET():
                     else:
                         labels = labels.view(-1, 1)
 
-                    outputs, gen_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
+                    outputs, gen_loss, dec_loss, hete_loss, homo_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
 
                     pred_loss = self.criterion(outputs, labels)
-                    total_loss = pred_loss + gen_loss
+                    raw_align_loss = self.args.lambda_dec * dec_loss + self.args.lambda_hete * hete_loss + self.args.lambda_homo * homo_loss
+                    align_loss = align_scale * raw_align_loss
+                    total_loss = pred_loss + gen_loss + align_loss
                     loss = pred_loss
 
                     eval_loss += loss.item()
                     predict_loss += pred_loss.item()
                     generate_loss += gen_loss.item()
+                    align_loss_total += align_loss.item()
 
                     y_pred.append(outputs.cpu())
                     y_true.append(labels.cpu())
@@ -164,5 +182,6 @@ class MFMB_NET():
         eval_results = self.metrics(pred, true)
         eval_results["Loss"] = round(eval_loss, 4)
 
+        eval_results['AlignLoss'] = round(align_loss_total / len(dataloader), 4)
         logger.info("%s-(%s) >> %s" % (mode, self.args.modelName, dict_to_str(eval_results)))
         return eval_results
