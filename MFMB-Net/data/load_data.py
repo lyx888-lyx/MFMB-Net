@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
+UNK_TOKEN_ID = 100
+
 __all__ = ['MMDataLoader']
 
 logger = logging.getLogger('MSA')
@@ -48,10 +50,19 @@ class MMDataset(Dataset):
             self.vision_lengths = data[self.mode]['vision_lengths']
         self.audio[self.audio == -np.inf] = 0
 
+        self.text_corrupt_rate = float(getattr(self.args, 'text_corrupt_train', 0.0) if self.mode == 'train' else getattr(self.args, 'text_corrupt_eval', 0.0))
+        self.text_corrupt_mode = getattr(self.args, 'text_corrupt_mode', 'none')
+        self.text_corrupt_span_frac = float(getattr(self.args, 'text_corrupt_span_frac', 0.4))
+        self.text_corrupt_seed = int(getattr(self.args, 'text_corrupt_seed', 2026))
+
         if self.args.data_missing:
             # Current Support Unaligned Data Missing.
             self.text_m, self.text_length, self.text_mask, self.text_missing_mask = self.generate_m(self.text[:,0,:], self.text[:,1,:], None,
                                                                                         self.args.missing_rate[0], self.args.missing_seed[0], mode='text')
+            self.text_m, self.text_corrupt_mask = self.generate_text_corruption(
+                self.text_m, self.text_mask, self.text_missing_mask,
+                self.text_corrupt_rate, self.text_corrupt_seed, self.text_corrupt_mode, self.text_corrupt_span_frac
+            )
             Input_ids_m = np.expand_dims(self.text_m, 1)
             Input_mask = np.expand_dims(self.text_mask, 1)
             Segment_ids = np.expand_dims(self.text[:,2,:], 1)
@@ -85,15 +96,83 @@ class MMDataset(Dataset):
         assert missing_mask.shape == input_mask.shape
         
         if mode == 'text':
-            # CLS SEG Token unchanged.
+            # CLS and SEP tokens unchanged.
             for i, instance in enumerate(missing_mask):
-                instance[0] = instance[input_len[i] - 1] = 1
-            
-            modality_m = missing_mask * modality + (100 * np.ones_like(modality)) * (input_mask - missing_mask) # UNK token: 100.
+                sep_idx = max(int(input_len[i]) - 1, 0)
+                instance[0] = 1
+                instance[sep_idx] = 1
+
+            modality_m = missing_mask * modality + (UNK_TOKEN_ID * np.ones_like(modality)) * (input_mask - missing_mask) # UNK token.
         elif mode == 'audio' or mode == 'vision':
             modality_m = missing_mask.reshape(modality.shape[0], modality.shape[1], 1) * modality
         
         return modality_m, input_len, input_mask, missing_mask
+
+    def generate_text_corruption(self, input_ids, input_mask, missing_mask, corrupt_rate, corrupt_seed, mode='mix', span_frac=0.4):
+        input_ids = input_ids.copy()
+        corrupt_mask = np.zeros_like(input_ids, dtype=np.float32)
+        if corrupt_rate <= 0 or mode == 'none':
+            return input_ids, corrupt_mask
+
+        rng = np.random.RandomState(corrupt_seed + {'train': 0, 'valid': 1000, 'test': 2000}[self.mode])
+        for i in range(input_ids.shape[0]):
+            valid_positions = np.where(input_mask[i] > 0)[0]
+            if len(valid_positions) <= 2:
+                continue
+            sep_idx = valid_positions[-1]
+            candidate = valid_positions[(valid_positions != 0) & (valid_positions != sep_idx)]
+            if candidate.size == 0:
+                continue
+            candidate = candidate[missing_mask[i, candidate] > 0]
+            if candidate.size == 0:
+                continue
+
+            budget = int(round(candidate.size * corrupt_rate))
+            budget = min(max(budget, 0), int(candidate.size))
+            if budget <= 0:
+                continue
+
+            selected = []
+            if mode in ('span', 'mix'):
+                span_budget = budget if mode == 'span' else int(round(budget * span_frac))
+                if span_budget > 0:
+                    ordered = np.sort(candidate)
+                    max_span = max(1, min(4, span_budget))
+                    tries = 0
+                    used = set()
+                    while len(selected) < span_budget and tries < 20:
+                        tries += 1
+                        start = int(rng.choice(ordered))
+                        span_len = int(rng.randint(1, max_span + 1))
+                        current = [idx for idx in range(start, start + span_len) if idx in ordered and idx not in used]
+                        if not current:
+                            continue
+                        for idx in current:
+                            used.add(idx)
+                            selected.append(idx)
+                            if len(selected) >= span_budget:
+                                break
+
+            if mode in ('token', 'mix'):
+                remaining = budget - len(selected)
+                if remaining > 0:
+                    available = np.array([idx for idx in candidate if idx not in set(selected)])
+                    if available.size > 0:
+                        chosen = rng.choice(available, size=min(remaining, available.size), replace=False)
+                        selected.extend(chosen.tolist())
+
+            if len(selected) < budget:
+                available = np.array([idx for idx in candidate if idx not in set(selected)])
+                if available.size > 0:
+                    filler = rng.choice(available, size=min(budget - len(selected), available.size), replace=False)
+                    selected.extend(filler.tolist())
+
+            if not selected:
+                continue
+            selected = np.array(sorted(set(selected)), dtype=np.int64)
+            input_ids[i, selected] = UNK_TOKEN_ID
+            corrupt_mask[i, selected] = 1.0
+        return input_ids, corrupt_mask
 
     def __truncated(self):
         # NOTE: Here for dataset we manually cut the input into specific length.
@@ -168,6 +247,7 @@ class MMDataset(Dataset):
                 'text': torch.Tensor(self.text[index]), # [batch_size, 3, 50]
                 'text_m': torch.Tensor(self.text_m[index]), # [batch_size, 3, 50]
                 'text_missing_mask': torch.Tensor(self.text_missing_mask[index]),
+                'text_corrupt_mask': torch.Tensor(self.text_corrupt_mask[index]) if hasattr(self, 'text_corrupt_mask') else torch.zeros_like(torch.Tensor(self.text_missing_mask[index])),
                 'audio': torch.Tensor(self.audio[index]),
                 'audio_m': torch.Tensor(self.audio_m[index]),
                 'audio_lengths': self.audio_lengths[index],

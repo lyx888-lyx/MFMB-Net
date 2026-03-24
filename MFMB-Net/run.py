@@ -4,7 +4,10 @@ import time
 import random
 import logging
 import torch
-import pynvml
+try:
+    import pynvml
+except ImportError:
+    pynvml = None
 import argparse
 import numpy as np
 import pandas as pd
@@ -34,12 +37,11 @@ def run(args):
         os.makedirs(args.model_save_dir)
     args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
     # indicate used gpu
-    if len(args.gpu_ids) == 0 and torch.cuda.is_available():
+    if len(args.gpu_ids) == 0 and torch.cuda.is_available() and pynvml is not None:
         # load free-most gpu
         pynvml.nvmlInit()
         device_count=pynvml.nvmlDeviceGetCount();
         dst_gpu_id, min_mem_used = 0, 1e16
-        #for g_id in [0, 1]:
         for g_id in range(device_count):
             handle = pynvml.nvmlDeviceGetHandleByIndex(g_id)
             meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
@@ -117,8 +119,13 @@ def run_normal(args):
         model_results.append(test_results)
     criterions = list(model_results[0].keys())
     # load other results
+    corrupt_tag = '-tc{}-te{}-{}'.format(
+        getattr(args, 'text_corrupt_train', 0.0),
+        getattr(args, 'text_corrupt_eval', 0.0),
+        getattr(args, 'text_corrupt_mode', 'mix')
+    )
     save_path = os.path.join(args.res_save_dir, \
-                        f'{args.datasetName}-{args.train_mode}-{missing_rate}.csv')
+                        f'{args.datasetName}-{args.train_mode}-{missing_rate}{corrupt_tag}.csv')
     if not os.path.exists(args.res_save_dir):
         os.makedirs(args.res_save_dir)
     if os.path.exists(save_path):
@@ -137,6 +144,7 @@ def run_normal(args):
     logger.info('Results are added to %s...' %(save_path))
 
 def set_log(args):
+    os.makedirs('logs', exist_ok=True)
     log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
     # set logging
     logger = logging.getLogger() 
@@ -169,6 +177,16 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument('--text_corrupt_train', type=float, default=0.0,
+                        help='token corruption rate for train split text input')
+    parser.add_argument('--text_corrupt_eval', type=float, default=0.0,
+                        help='token corruption rate for valid/test split text input')
+    parser.add_argument('--text_corrupt_mode', type=str, default='mix', choices=['none', 'token', 'span', 'mix'],
+                        help='text corruption mode applied on input ids after missing simulation')
+    parser.add_argument('--text_corrupt_span_frac', type=float, default=0.4,
+                        help='fraction of corrupt tokens allocated to contiguous spans when using span/mix mode')
+    parser.add_argument('--text_corrupt_seed', type=int, default=2026,
+                        help='base seed for text corruption benchmark')
     return parser.parse_args()
 
 if __name__ == '__main__':
