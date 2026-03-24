@@ -111,6 +111,14 @@ def run(args):
     model.to(device)
     results = atio.do_test(model, dataloader['test'], mode="TEST")
 
+    # 如果不需要长期保留 checkpoint，测试完就删掉
+    if (not args.keep_ckpt) and os.path.exists(args.model_save_path):
+        try:
+            os.remove(args.model_save_path)
+            logger.info(f"Removed checkpoint: {args.model_save_path}")
+        except Exception as e:
+            logger.warning(f"Failed to remove checkpoint {args.model_save_path}: {e}")
+
     del model
     torch.cuda.empty_cache()
     gc.collect()
@@ -204,6 +212,7 @@ def parse_args():
     parser.add_argument('--missing_v', type=float, default=None, help='vision missing rate')
     parser.add_argument('--seeds', type=str, default='111,1111,11111', help='comma-separated seeds')
     parser.add_argument('--run_tag', type=str, default='', help='optional suffix for grouping a batch of runs')
+    parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
     args = parser.parse_args()
     args.gpu_ids = parse_gpu_ids(args.gpu_ids)
     args.seeds = parse_seeds(args.seeds)

@@ -1,0 +1,9 @@
+Primary ranking metric: Corr
+modality metric  baseline  drop_at_max_missing  avg_drop_auc  sensitivity_score
+    text   Corr    0.7843               0.6309      0.318013           0.318013
+  vision   Corr    0.7843               0.0118      0.005075           0.005075
+   audio   Corr    0.7843               0.0000           NaN                NaN
+
+Interpretation:
+Most critical modality under Corr: text
+Higher sensitivity_score means performance deteriorates faster when that modality is removed.

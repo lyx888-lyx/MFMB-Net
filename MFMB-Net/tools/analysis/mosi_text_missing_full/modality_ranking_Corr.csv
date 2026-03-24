@@ -1,0 +1,2 @@
+modality,metric,baseline,drop_at_max_missing,avg_drop_auc,sensitivity_score
+text,Corr,0.7843000000000001,0.6309000000000001,0.31545000000000006,0.31545000000000006
