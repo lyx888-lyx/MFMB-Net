@@ -191,6 +191,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+    args.device = "cuda"
     args.missing_rate = tuple([args.missing, args.missing, args.missing])
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]

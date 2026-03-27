@@ -67,7 +67,9 @@ class RECLoss(nn.Module):
         """
         mask = mask.unsqueeze(-1).expand(pred.shape[0], pred.shape[1], pred.shape[2])
 
-        loss = self.loss(pred*mask, target*mask) / (torch.sum(mask) + self.eps)
+        # 在第 70 行前面加一句，强制让 self.eps 去找 mask 所在的设备
+        eps = self.eps.to(mask.device) if isinstance(self.eps, torch.Tensor) else self.eps
+        loss = self.loss(pred*mask, target*mask) / (torch.sum(mask) + eps)
 
         if self.args.recloss_type == 'combine' and self.args.weight_sim_loss!=0:
             loss += (self.args.weight_sim_loss * self.loss_cmd(pred*mask, target*mask) / (torch.sum(mask) + self.eps))

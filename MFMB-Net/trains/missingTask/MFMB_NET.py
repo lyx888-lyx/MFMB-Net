@@ -22,6 +22,12 @@ class MFMB_NET():
         self.metrics = MetricsTop(args.train_mode).getMetics(args.datasetName)
 
     def do_train(self, model, dataloader):
+        # 1. 暴力拦截：不管前面谁把 device 改成了 cpu，在这里统统强制改回 cuda！
+        self.args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # 加上这一行，双保险：确保模型先去 GPU！
+        model = model.to(self.args.device)
+        # 3. 打印确认
+        # print(f"============ 暴力修改后，当前使用的设备是: {self.args.device} ============")
         if self.args.use_bert_finetune:
             bert_no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
             bert_params = list(model.Model.text_model.named_parameters())
@@ -120,6 +126,12 @@ class MFMB_NET():
                 return
 
     def do_test(self, model, dataloader, mode="VAL"):
+        # 1. 暴力拦截：不管前面谁把 device 改成了 cpu，在这里统统强制改回 cuda！
+        self.args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # 加上这一行，双保险：确保模型先去 GPU！
+        model = model.to(self.args.device)
+        # 3. 打印确认
+        # print(f"============ 暴力修改后，当前使用的设备是: {self.args.device} ============")
         model.eval()
         y_pred, y_true = [], []
         eval_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0

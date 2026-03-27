@@ -65,7 +65,10 @@ class BottleAttentionNet(nn.Module):
 
         fsn=torch.zeros(self.seq,audio.size(1),self.embed_dim).cuda()
 
-        x=torch.cat([audio,fsn],dim=0)
+        # x=torch.cat([audio,fsn],dim=0)
+        # 将 fsn 移动到 audio 所在的设备上
+        fsn = fsn.to(audio.device)
+        x = torch.cat([audio, fsn], dim=0)
 
         for i in range(self.layer_multimodal):
             if i==0:
