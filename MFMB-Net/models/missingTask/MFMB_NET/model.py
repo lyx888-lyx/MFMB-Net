@@ -127,7 +127,11 @@ class MFMB_NET(nn.Module):
             audio_gen_loss = self.gen_loss(audio_, audio, audio_mask - missing_mask_a)
             vision_gen_loss = self.gen_loss(vision_, vision, vision_mask - missing_mask_v)
 
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))  
+            prediction = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
                 
             #prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),text_,audio_,vision_)
             
@@ -137,6 +141,10 @@ class MFMB_NET(nn.Module):
             return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
             
         else:
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))
+            prediction = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
             return prediction, torch.Tensor([0]).to(self.args.device)
         

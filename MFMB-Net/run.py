@@ -32,7 +32,11 @@ def run(args):
     '''
     if not os.path.exists(args.model_save_dir):
         os.makedirs(args.model_save_dir)
-    args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
+    missing_tag = '-'.join(str(round(x, 4)) for x in args.missing_rate)
+    args.model_save_path = os.path.join(
+        args.model_save_dir,
+        f'{args.modelName}-{args.datasetName}-{args.train_mode}-m{missing_tag}.pth',
+    )
     # indicate used gpu
     if len(args.gpu_ids) == 0 and torch.cuda.is_available():
         # load free-most gpu
@@ -97,7 +101,7 @@ def run_normal(args):
     init_args = args
     model_results = []
     seeds = args.seeds
-    missing_rate = 0.0
+    missing_rate = '0-0-0'
     # run results
     for i, seed in enumerate(seeds):
         args = init_args
@@ -105,7 +109,7 @@ def run_normal(args):
         config = ConfigRegression(args)
         args = config.get_config()
         if i == 0 and args.data_missing:
-            missing_rate = str(args.missing_rate[0])
+            missing_rate = '-'.join(str(round(x, 4)) for x in args.missing_rate)
         setup_seed(seed)
         args.seed = seed
         logger.info('Start running %s...' %(args.modelName))
@@ -169,11 +173,37 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument(
+        '--fusion_center_modality',
+        type=str,
+        default='text',
+        choices=['text', 'audio', 'vision', 'dynamic'],
+        help="Fusion hub: text=avt, audio=tav, vision=tva; dynamic=pick anchor by integrity+log-energy (learned scorer).",
+    )
+    parser.add_argument(
+        '--fusion_prompt_dim',
+        type=int,
+        default=0,
+        help="Learned fusion-side vector dim (concat to classifier). Not natural-language; use --modality_gate for trust scaling.",
+    )
+    parser.add_argument(
+        '--modality_gate',
+        type=str,
+        default='none',
+        choices=['none', 'integrity', 'learned'],
+        help="integrity: scale T/A/V encoder outputs by observed ratio (down-weight zeros/missing); learned: sigmoid MLP on integrity.",
+    )
+    parser.add_argument('--missing_t', type=float, default=None, help='Text missing rate; default: --missing')
+    parser.add_argument('--missing_a', type=float, default=None, help='Audio missing rate; default: --missing')
+    parser.add_argument('--missing_v', type=float, default=None, help='Vision missing rate; default: --missing')
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
-    args.missing_rate = tuple([args.missing, args.missing, args.missing])
+    mt = args.missing_t if args.missing_t is not None else args.missing
+    ma = args.missing_a if args.missing_a is not None else args.missing
+    mv = args.missing_v if args.missing_v is not None else args.missing
+    args.missing_rate = tuple([mt, ma, mv])
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]
     run_normal(args)
