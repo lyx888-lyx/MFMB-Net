@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="552" height="388" viewBox="0 0 552 388">
+<style> .axis { font: 14px "IBM Plex Sans", "Segoe UI", sans-serif; fill: #222; } .title { font: 16px sans-serif; font-weight: 600; fill: #111; } .celltxt { font: 13px "IBM Plex Mono", "Consolas", monospace; fill: #111; } .hdr { font: 13px sans-serif; fill: #333; } </style>
+<text x="276" y="28" text-anchor="middle" class="title">MOSI regression — text missing = 0.5 (keep_text_grid)</text>
+<text x="276" y="46" text-anchor="middle" class="hdr">Non0_F1_score — higher is better (min=57.00, max=70.21)</text>
+<text x="116.0" y="48.0" text-anchor="middle" class="axis">v=0</text>
+<text x="204.0" y="48.0" text-anchor="middle" class="axis">v=0.25</text>
+<text x="292.0" y="48.0" text-anchor="middle" class="axis">v=0.5</text>
+<text x="380.0" y="48.0" text-anchor="middle" class="axis">v=0.75</text>
+<text x="468.0" y="48.0" text-anchor="middle" class="axis">v=1</text>
+<text x="62.0" y="87.0" text-anchor="end" class="axis">a=0</text>
+<text x="62.0" y="139.0" text-anchor="end" class="axis">a=0.25</text>
+<text x="62.0" y="191.0" text-anchor="end" class="axis">a=0.5</text>
+<text x="62.0" y="243.0" text-anchor="end" class="axis">a=0.75</text>
+<text x="62.0" y="295.0" text-anchor="end" class="axis">a=1</text>
+<rect x="72.0" y="56.0" width="86.0" height="50.0" rx="4" fill="#4bb4c2" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="86.0" text-anchor="middle" class="celltxt">67.45</text>
+<rect x="160.0" y="56.0" width="86.0" height="50.0" rx="4" fill="#2dc7de" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="86.0" text-anchor="middle" class="celltxt">69.64</text>
+<rect x="248.0" y="56.0" width="86.0" height="50.0" rx="4" fill="#44b8c9" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="86.0" text-anchor="middle" class="celltxt">67.99</text>
+<rect x="336.0" y="56.0" width="86.0" height="50.0" rx="4" fill="#4bb3c2" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="86.0" text-anchor="middle" class="celltxt">67.42</text>
+<rect x="424.0" y="56.0" width="86.0" height="50.0" rx="4" fill="#57acb7" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="86.0" text-anchor="middle" class="celltxt">66.58</text>
+<rect x="72.0" y="108.0" width="86.0" height="50.0" rx="4" fill="#4cb3c1" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="138.0" text-anchor="middle" class="celltxt">67.37</text>
+<rect x="160.0" y="108.0" width="86.0" height="50.0" rx="4" fill="#26cce5" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="138.0" text-anchor="middle" class="celltxt">70.21</text>
+<rect x="248.0" y="108.0" width="86.0" height="50.0" rx="4" fill="#40bbcd" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="138.0" text-anchor="middle" class="celltxt">68.26</text>
+<rect x="336.0" y="108.0" width="86.0" height="50.0" rx="4" fill="#4ab4c3" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="138.0" text-anchor="middle" class="celltxt">67.51</text>
+<rect x="424.0" y="108.0" width="86.0" height="50.0" rx="4" fill="#57acb7" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="138.0" text-anchor="middle" class="celltxt">66.53</text>
+<rect x="72.0" y="160.0" width="86.0" height="50.0" rx="4" fill="#5ca9b3" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="190.0" text-anchor="middle" class="celltxt">66.23</text>
+<rect x="160.0" y="160.0" width="86.0" height="50.0" rx="4" fill="#52afbb" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="190.0" text-anchor="middle" class="celltxt">66.90</text>
+<rect x="248.0" y="160.0" width="86.0" height="50.0" rx="4" fill="#2fc6dc" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="190.0" text-anchor="middle" class="celltxt">69.52</text>
+<rect x="336.0" y="160.0" width="86.0" height="50.0" rx="4" fill="#b27263" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="190.0" text-anchor="middle" class="celltxt">59.86</text>
+<rect x="424.0" y="160.0" width="86.0" height="50.0" rx="4" fill="#74999d" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="190.0" text-anchor="middle" class="celltxt">64.44</text>
+<rect x="72.0" y="212.0" width="86.0" height="50.0" rx="4" fill="#35c2d7" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="242.0" text-anchor="middle" class="celltxt">69.09</text>
+<rect x="160.0" y="212.0" width="86.0" height="50.0" rx="4" fill="#42b9ca" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="242.0" text-anchor="middle" class="celltxt">68.09</text>
+<rect x="248.0" y="212.0" width="86.0" height="50.0" rx="4" fill="#39bfd3" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="242.0" text-anchor="middle" class="celltxt">68.79</text>
+<rect x="336.0" y="212.0" width="86.0" height="50.0" rx="4" fill="#58abb6" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="242.0" text-anchor="middle" class="celltxt">66.46</text>
+<rect x="424.0" y="212.0" width="86.0" height="50.0" rx="4" fill="#d8593f" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="242.0" text-anchor="middle" class="celltxt">57.00</text>
+<rect x="72.0" y="264.0" width="86.0" height="50.0" rx="4" fill="#69a0a6" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="294.0" text-anchor="middle" class="celltxt">65.22</text>
+<rect x="160.0" y="264.0" width="86.0" height="50.0" rx="4" fill="#33c3d9" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="294.0" text-anchor="middle" class="celltxt">69.22</text>
+<rect x="248.0" y="264.0" width="86.0" height="50.0" rx="4" fill="#a07d74" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="294.0" text-anchor="middle" class="celltxt">61.19</text>
+<rect x="336.0" y="264.0" width="86.0" height="50.0" rx="4" fill="#35c2d7" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="294.0" text-anchor="middle" class="celltxt">69.07</text>
+<rect x="424.0" y="264.0" width="86.0" height="50.0" rx="4" fill="#2ac8e1" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="294.0" text-anchor="middle" class="celltxt">69.86</text>
+<text x="72.0" y="360.0" class="hdr">Rows: audio missing rate; Columns: vision missing rate.</text>
+</svg>

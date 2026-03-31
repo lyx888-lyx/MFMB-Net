@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="552" height="728" viewBox="0 0 552 728">
+<style> .axis { font: 13px "Segoe UI", sans-serif; fill: #222; } .title { font: 17px sans-serif; font-weight: 600; fill: #111; } .celltxt { font: 12px "Consolas", monospace; fill: #111; } .phdr { font: 14px sans-serif; font-weight: 600; fill: #222; } .hdr { font: 12px sans-serif; fill: #444; } </style>
+<text x="276" y="28" text-anchor="middle" class="title">MOSI regression — text missing = 0.5 (keep_text_grid)</text>
+<text x="72.0" y="48.0" class="phdr">MAE — lower is better (min=1.145, max=1.373)</text>
+<text x="116.0" y="72.0" text-anchor="middle" class="axis">v=0</text>
+<text x="204.0" y="72.0" text-anchor="middle" class="axis">v=0.25</text>
+<text x="292.0" y="72.0" text-anchor="middle" class="axis">v=0.5</text>
+<text x="380.0" y="72.0" text-anchor="middle" class="axis">v=0.75</text>
+<text x="468.0" y="72.0" text-anchor="middle" class="axis">v=1</text>
+<text x="64.0" y="124.0" text-anchor="end" class="axis">a=0</text>
+<text x="64.0" y="176.0" text-anchor="end" class="axis">a=0.25</text>
+<text x="64.0" y="228.0" text-anchor="end" class="axis">a=0.5</text>
+<text x="64.0" y="280.0" text-anchor="end" class="axis">a=0.75</text>
+<text x="64.0" y="332.0" text-anchor="end" class="axis">a=1</text>
+<rect x="72.0" y="94.0" width="86.0" height="50.0" rx="4" fill="#709ca0" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="123.0" text-anchor="middle" class="celltxt">1.240</text>
+<rect x="160.0" y="94.0" width="86.0" height="50.0" rx="4" fill="#4bb4c3" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="123.0" text-anchor="middle" class="celltxt">1.192</text>
+<rect x="248.0" y="94.0" width="86.0" height="50.0" rx="4" fill="#48b6c5" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="123.0" text-anchor="middle" class="celltxt">1.189</text>
+<rect x="336.0" y="94.0" width="86.0" height="50.0" rx="4" fill="#5aaab4" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="123.0" text-anchor="middle" class="celltxt">1.212</text>
+<rect x="424.0" y="94.0" width="86.0" height="50.0" rx="4" fill="#7a9597" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="123.0" text-anchor="middle" class="celltxt">1.253</text>
+<rect x="72.0" y="146.0" width="86.0" height="50.0" rx="4" fill="#6b9fa5" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="175.0" text-anchor="middle" class="celltxt">1.233</text>
+<rect x="160.0" y="146.0" width="86.0" height="50.0" rx="4" fill="#26cce5" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="175.0" text-anchor="middle" class="celltxt">1.145</text>
+<rect x="248.0" y="146.0" width="86.0" height="50.0" rx="4" fill="#63a4ac" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="175.0" text-anchor="middle" class="celltxt">1.224</text>
+<rect x="336.0" y="146.0" width="86.0" height="50.0" rx="4" fill="#57acb7" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="175.0" text-anchor="middle" class="celltxt">1.208</text>
+<rect x="424.0" y="146.0" width="86.0" height="50.0" rx="4" fill="#7a9697" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="175.0" text-anchor="middle" class="celltxt">1.252</text>
+<rect x="72.0" y="198.0" width="86.0" height="50.0" rx="4" fill="#729b9e" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="227.0" text-anchor="middle" class="celltxt">1.242</text>
+<rect x="160.0" y="198.0" width="86.0" height="50.0" rx="4" fill="#56adb8" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="227.0" text-anchor="middle" class="celltxt">1.207</text>
+<rect x="248.0" y="198.0" width="86.0" height="50.0" rx="4" fill="#2ec6dd" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="227.0" text-anchor="middle" class="celltxt">1.155</text>
+<rect x="336.0" y="198.0" width="86.0" height="50.0" rx="4" fill="#d8593f" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="227.0" text-anchor="middle" class="celltxt">1.373</text>
+<rect x="424.0" y="198.0" width="86.0" height="50.0" rx="4" fill="#878d8b" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="227.0" text-anchor="middle" class="celltxt">1.269</text>
+<rect x="72.0" y="250.0" width="86.0" height="50.0" rx="4" fill="#5da8b2" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="279.0" text-anchor="middle" class="celltxt">1.216</text>
+<rect x="160.0" y="250.0" width="86.0" height="50.0" rx="4" fill="#6b9fa5" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="279.0" text-anchor="middle" class="celltxt">1.233</text>
+<rect x="248.0" y="250.0" width="86.0" height="50.0" rx="4" fill="#4eb2c0" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="279.0" text-anchor="middle" class="celltxt">1.196</text>
+<rect x="336.0" y="250.0" width="86.0" height="50.0" rx="4" fill="#888c89" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="279.0" text-anchor="middle" class="celltxt">1.271</text>
+<rect x="424.0" y="250.0" width="86.0" height="50.0" rx="4" fill="#c36653" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="279.0" text-anchor="middle" class="celltxt">1.347</text>
+<rect x="72.0" y="302.0" width="86.0" height="50.0" rx="4" fill="#74999c" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="331.0" text-anchor="middle" class="celltxt">1.246</text>
+<rect x="160.0" y="302.0" width="86.0" height="50.0" rx="4" fill="#47b6c7" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="331.0" text-anchor="middle" class="celltxt">1.187</text>
+<rect x="248.0" y="302.0" width="86.0" height="50.0" rx="4" fill="#709ca0" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="331.0" text-anchor="middle" class="celltxt">1.240</text>
+<rect x="336.0" y="302.0" width="86.0" height="50.0" rx="4" fill="#3cbdd1" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="331.0" text-anchor="middle" class="celltxt">1.173</text>
+<rect x="424.0" y="302.0" width="86.0" height="50.0" rx="4" fill="#3dbdcf" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="331.0" text-anchor="middle" class="celltxt">1.175</text>
+<text x="72.0" y="374.0" class="phdr">Corr — higher is better (min=0.388, max=0.492)</text>
+<text x="116.0" y="398.0" text-anchor="middle" class="axis">v=0</text>
+<text x="204.0" y="398.0" text-anchor="middle" class="axis">v=0.25</text>
+<text x="292.0" y="398.0" text-anchor="middle" class="axis">v=0.5</text>
+<text x="380.0" y="398.0" text-anchor="middle" class="axis">v=0.75</text>
+<text x="468.0" y="398.0" text-anchor="middle" class="axis">v=1</text>
+<text x="64.0" y="450.0" text-anchor="end" class="axis">a=0</text>
+<text x="64.0" y="502.0" text-anchor="end" class="axis">a=0.25</text>
+<text x="64.0" y="554.0" text-anchor="end" class="axis">a=0.5</text>
+<text x="64.0" y="606.0" text-anchor="end" class="axis">a=0.75</text>
+<text x="64.0" y="658.0" text-anchor="end" class="axis">a=1</text>
+<rect x="72.0" y="420.0" width="86.0" height="50.0" rx="4" fill="#26cce5" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="449.0" text-anchor="middle" class="celltxt">0.492</text>
+<rect x="160.0" y="420.0" width="86.0" height="50.0" rx="4" fill="#40bbcd" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="449.0" text-anchor="middle" class="celltxt">0.477</text>
+<rect x="248.0" y="420.0" width="86.0" height="50.0" rx="4" fill="#5ea7b1" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="449.0" text-anchor="middle" class="celltxt">0.459</text>
+<rect x="336.0" y="420.0" width="86.0" height="50.0" rx="4" fill="#62a5ad" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="449.0" text-anchor="middle" class="celltxt">0.457</text>
+<rect x="424.0" y="420.0" width="86.0" height="50.0" rx="4" fill="#c56551" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="449.0" text-anchor="middle" class="celltxt">0.399</text>
+<rect x="72.0" y="472.0" width="86.0" height="50.0" rx="4" fill="#58abb6" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="501.0" text-anchor="middle" class="celltxt">0.463</text>
+<rect x="160.0" y="472.0" width="86.0" height="50.0" rx="4" fill="#3cbdd0" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="501.0" text-anchor="middle" class="celltxt">0.479</text>
+<rect x="248.0" y="472.0" width="86.0" height="50.0" rx="4" fill="#61a6ae" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="501.0" text-anchor="middle" class="celltxt">0.458</text>
+<rect x="336.0" y="472.0" width="86.0" height="50.0" rx="4" fill="#858e8c" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="501.0" text-anchor="middle" class="celltxt">0.436</text>
+<rect x="424.0" y="472.0" width="86.0" height="50.0" rx="4" fill="#66a2a9" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="501.0" text-anchor="middle" class="celltxt">0.454</text>
+<rect x="72.0" y="524.0" width="86.0" height="50.0" rx="4" fill="#77979a" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="553.0" text-anchor="middle" class="celltxt">0.445</text>
+<rect x="160.0" y="524.0" width="86.0" height="50.0" rx="4" fill="#42b9cb" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="553.0" text-anchor="middle" class="celltxt">0.475</text>
+<rect x="248.0" y="524.0" width="86.0" height="50.0" rx="4" fill="#55adb9" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="553.0" text-anchor="middle" class="celltxt">0.464</text>
+<rect x="336.0" y="524.0" width="86.0" height="50.0" rx="4" fill="#b76e5e" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="553.0" text-anchor="middle" class="celltxt">0.407</text>
+<rect x="424.0" y="524.0" width="86.0" height="50.0" rx="4" fill="#5fa7b0" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="553.0" text-anchor="middle" class="celltxt">0.458</text>
+<rect x="72.0" y="576.0" width="86.0" height="50.0" rx="4" fill="#5ca9b3" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="605.0" text-anchor="middle" class="celltxt">0.460</text>
+<rect x="160.0" y="576.0" width="86.0" height="50.0" rx="4" fill="#66a2aa" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="605.0" text-anchor="middle" class="celltxt">0.455</text>
+<rect x="248.0" y="576.0" width="86.0" height="50.0" rx="4" fill="#57acb7" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="605.0" text-anchor="middle" class="celltxt">0.463</text>
+<rect x="336.0" y="576.0" width="86.0" height="50.0" rx="4" fill="#4bb4c2" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="605.0" text-anchor="middle" class="celltxt">0.470</text>
+<rect x="424.0" y="576.0" width="86.0" height="50.0" rx="4" fill="#d8593f" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="605.0" text-anchor="middle" class="celltxt">0.388</text>
+<rect x="72.0" y="628.0" width="86.0" height="50.0" rx="4" fill="#8b8b87" stroke="#bbb" stroke-width="1"/>
+<text x="115.0" y="657.0" text-anchor="middle" class="celltxt">0.433</text>
+<rect x="160.0" y="628.0" width="86.0" height="50.0" rx="4" fill="#66a2a9" stroke="#bbb" stroke-width="1"/>
+<text x="203.0" y="657.0" text-anchor="middle" class="celltxt">0.454</text>
+<rect x="248.0" y="628.0" width="86.0" height="50.0" rx="4" fill="#67a2a8" stroke="#bbb" stroke-width="1"/>
+<text x="291.0" y="657.0" text-anchor="middle" class="celltxt">0.454</text>
+<rect x="336.0" y="628.0" width="86.0" height="50.0" rx="4" fill="#65a3aa" stroke="#bbb" stroke-width="1"/>
+<text x="379.0" y="657.0" text-anchor="middle" class="celltxt">0.455</text>
+<rect x="424.0" y="628.0" width="86.0" height="50.0" rx="4" fill="#55adb9" stroke="#bbb" stroke-width="1"/>
+<text x="467.0" y="657.0" text-anchor="middle" class="celltxt">0.465</text>
+<text x="72.0" y="716.0" class="hdr">Rows: audio missing; columns: vision missing. MAE/Corr/Loss values are raw CSV means divided by 100 (same convention as plot_modality_sensitivity).</text>
+</svg>
