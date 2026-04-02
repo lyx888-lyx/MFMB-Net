@@ -6,3 +6,4 @@ tqdm==4.66.5
 transformers==4.31.0
 einops==0.7.0
 nvidia-ml-py==13.590.48
+matplotlib>=3.5.0

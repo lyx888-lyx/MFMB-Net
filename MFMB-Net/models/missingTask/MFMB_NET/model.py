@@ -8,6 +8,7 @@ from models.missingTask.MFMB_NET.generator import Generator
 from models.subNets.BertTextEncoder import BertTextEncoder
 
 from models.missingTask.MFMB_NET.fusion_599 import Fusion
+from utils.text_corrupt import maybe_corrupt_text_pair
 
 # CMD Loss
 class CMD(nn.Module):
@@ -107,10 +108,17 @@ class MFMB_NET(nn.Module):
         vision, vision_m, vision_mask, missing_mask_v = vision
        
         text_mask = text[:,1,:]
-      
-        text_m = self.text_model(text_m)
-       
 
+        text, text_m = maybe_corrupt_text_pair(
+            text, text_m,
+            training=self.training,
+            text_corrupt_train=getattr(self.args, 'text_corrupt_train', 0.0),
+            text_corrupt_eval=getattr(self.args, 'text_corrupt_eval', 0.0),
+            text_corrupt_mode=getattr(self.args, 'text_corrupt_mode', 'mix'),
+            text_corrupt_span_frac=getattr(self.args, 'text_corrupt_span_frac', 0.4),
+        )
+
+        text_m = self.text_model(text_m)
         text = self.text_model(text)
        
 
@@ -129,7 +137,11 @@ class MFMB_NET(nn.Module):
             audio_gen_loss = self.gen_loss(audio_, audio, audio_mask - missing_mask_a)
             vision_gen_loss = self.gen_loss(vision_, vision, vision_mask - missing_mask_v)
 
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))  
+            prediction = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
                 
             #prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),text_,audio_,vision_)
             
@@ -139,6 +151,10 @@ class MFMB_NET(nn.Module):
             return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
             
         else:
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))
+            prediction = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
             return prediction, torch.Tensor([0]).to(self.args.device)
         

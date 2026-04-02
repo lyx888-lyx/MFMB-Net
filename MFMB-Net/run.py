@@ -35,7 +35,14 @@ def run(args):
     '''
     if not os.path.exists(args.model_save_dir):
         os.makedirs(args.model_save_dir)
-    args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
+    fc = getattr(args, 'fusion_center_modality', 'text')
+    tct = getattr(args, 'text_corrupt_train', 0.0)
+    tce = getattr(args, 'text_corrupt_eval', 0.0)
+    mr = '-'.join(str(round(x, 4)) for x in getattr(args, 'missing_rate', (0.0, 0.0, 0.0)))
+    args.model_save_path = os.path.join(
+        args.model_save_dir,
+        f'{args.modelName}-{args.datasetName}-{args.train_mode}-m{mr}-fc{fc}-tc{tct}-te{tce}.pth',
+    )
     # indicate used gpu
     if len(args.gpu_ids) == 0 and torch.cuda.is_available() and pynvml is not None:
         # load free-most gpu
@@ -99,7 +106,7 @@ def run_normal(args):
     init_args = args
     model_results = []
     seeds = args.seeds
-    missing_rate = 0.0
+    missing_rate = '0-0-0'
     # run results
     for i, seed in enumerate(seeds):
         args = init_args
@@ -107,7 +114,7 @@ def run_normal(args):
         config = ConfigRegression(args)
         args = config.get_config()
         if i == 0 and args.data_missing:
-            missing_rate = str(args.missing_rate[0])
+            missing_rate = '-'.join(str(round(x, 4)) for x in args.missing_rate)
         setup_seed(seed)
         args.seed = seed
         logger.info('Start running %s...' %(args.modelName))
@@ -124,8 +131,11 @@ def run_normal(args):
         getattr(args, 'text_corrupt_eval', 0.0),
         getattr(args, 'text_corrupt_mode', 'mix')
     )
-    save_path = os.path.join(args.res_save_dir, \
-                        f'{args.datasetName}-{args.train_mode}-{missing_rate}{corrupt_tag}.csv')
+    fc = getattr(args, 'fusion_center_modality', 'text')
+    save_path = os.path.join(
+        args.res_save_dir,
+        f'{args.datasetName}-{args.train_mode}-{missing_rate}-fc{fc}{corrupt_tag}.csv',
+    )
     if not os.path.exists(args.res_save_dir):
         os.makedirs(args.res_save_dir)
     if os.path.exists(save_path):
@@ -176,7 +186,11 @@ def parse_args():
                         help='path to save results.')
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
-    parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument('--missing', type=float, default=0.0,
+                        help='若未单独指定 missing_t/a/v，则三模态均使用该缺失率')
+    parser.add_argument('--missing_t', type=float, default=None, help='文本缺失率，默认与 --missing 相同')
+    parser.add_argument('--missing_a', type=float, default=None, help='音频缺失率')
+    parser.add_argument('--missing_v', type=float, default=None, help='视频缺失率')
     parser.add_argument('--text_corrupt_train', type=float, default=0.0,
                         help='token corruption rate for train split text input')
     parser.add_argument('--text_corrupt_eval', type=float, default=0.0,
@@ -187,12 +201,21 @@ def parse_args():
                         help='fraction of corrupt tokens allocated to contiguous spans when using span/mix mode')
     parser.add_argument('--text_corrupt_seed', type=int, default=2026,
                         help='base seed for text corruption benchmark')
+    parser.add_argument(
+        '--fusion_center_modality',
+        type=str,
+        default='text',
+        choices=['text', 'audio', 'vision', 'dynamic'],
+        help='Fusion hub: text=固定文本锚点(avt)；dynamic=按完整度/能量学习打分选锚点。',
+    )
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
-    args.device = "cuda"
-    args.missing_rate = tuple([args.missing, args.missing, args.missing])
+    mt = args.missing_t if args.missing_t is not None else args.missing
+    ma = args.missing_a if args.missing_a is not None else args.missing
+    mv = args.missing_v if args.missing_v is not None else args.missing
+    args.missing_rate = tuple([mt, ma, mv])
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]
     run_normal(args)

@@ -13,11 +13,17 @@ class ConfigRegression():
         # hyper parameters for datasets
         HYPER_DATASET_MAP = self.__datasetCommonParams()
 
-        # normalize
+        # normalize — 实验里可用 mfmb_net_text / mfmb_net_dynamic 等别名，超参仍走 mfmb_net
         model_name = str.lower(args.modelName)
         dataset_name = str.lower(args.datasetName)
+        config_model_key = 'mfmb_net' if model_name.startswith('mfmb_net') else model_name
+        if config_model_key not in HYPER_MODEL_MAP:
+            raise KeyError(
+                f"Unknown model '{args.modelName}'. "
+                f"Supported: {list(HYPER_MODEL_MAP.keys())} or names starting with 'mfmb_net'."
+            )
         # load params
-        commonArgs = HYPER_MODEL_MAP[model_name]()['commonParas']
+        commonArgs = HYPER_MODEL_MAP[config_model_key]()['commonParas']
         dataArgs = HYPER_DATASET_MAP[dataset_name]
         
         if commonArgs['data_missing']:
@@ -29,7 +35,7 @@ class ConfigRegression():
         self.args = Storage(dict(vars(args),
                             **dataArgs,
                             **commonArgs,
-                            **HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name],
+                            **HYPER_MODEL_MAP[config_model_key]()['datasetParas'][dataset_name],
                             ))
     
     def __datasetCommonParams(self):

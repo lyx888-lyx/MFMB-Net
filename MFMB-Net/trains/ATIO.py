@@ -14,4 +14,7 @@ class ATIO():
         }
     
     def getTrain(self, args):
-        return self.TRAIN_MAP[args.modelName.lower()](args)
+        key = args.modelName.lower()
+        if key.startswith('mfmb_net'):
+            key = 'mfmb_net'
+        return self.TRAIN_MAP[key](args)

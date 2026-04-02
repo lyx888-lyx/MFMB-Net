@@ -1,0 +1,2 @@
+Model,Has0_acc_2,Has0_F1_score,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7,MAE,Corr,Loss
+mfmb_net_A1_te0_fcdynamic,"(80.6, 1.52)","(80.62, 1.54)","(81.6, 2.09)","(81.54, 2.13)","(43.01, 1.43)","(37.9, 1.52)","(84.51, 4.76)","(76.19, 1.9)","(84.51, 4.76)"
