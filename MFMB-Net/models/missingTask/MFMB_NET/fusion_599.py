@@ -1,10 +1,46 @@
+"""
+GATE_F 融合：固定锚点 + dynamic 多 hub 加权。
+
+--------------------------------------------------------------------
+A) fixed text / audio / vision
+--------------------------------------------------------------------
+  与历史单锚点一致：仅一条 bottle 序（HUB_TO_BOTTLE），无 router、无 alpha。
+
+--------------------------------------------------------------------
+B) dynamic + fusion_dynamic_mode=hard + use_reliability_router=True
+--------------------------------------------------------------------
+  ReliabilityRouterMLP 输出 logits → **argmax** → **one-hot alpha**（硬动态锚点）。
+  alpha 索引顺序：0=text-hub, 1=audio-hub, 2=vision-hub。
+
+--------------------------------------------------------------------
+C) dynamic + fusion_dynamic_mode=soft + use_reliability_router=True
+--------------------------------------------------------------------
+  logits → softmax(logits/temperature) → **连续 alpha**（可靠性感知软路由）。
+
+--------------------------------------------------------------------
+D) dynamic + fusion_dynamic_mode=soft + use_reliability_router=False
+--------------------------------------------------------------------
+  **不调用 router**，固定 **alpha=(1/3,1/3,1/3)** 对三路 hub 做加权。
+  这是 **uniform soft fusion baseline**（均匀软融合基线），
+  **不是**「退化为旧版单路径融合」；旧版单路径请用 fixed *。
+
+--------------------------------------------------------------------
+Checkpoint：dynamic 且启用 router 时参数为 ReliabilityRouterMLP，与旧版 Linear(6,3) `anchor_scorer`
+**不兼容**，需重新训练；fixed 路径结构未改，旧权重仍可按 strict=False 策略加载（见 run.py）。
+
+三路 hub 顺序 [text, audio, vision] 与 HUB_TO_BOTTLE 中 avt / tav / tva 一致。
+Prompt 定义见 corruption_prompt.py 顶部注释。
+"""
+import logging
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 
 from models.missingTask.MFMB_NET.modules.transformer import TransformerEncoder
+from models.missingTask.MFMB_NET.corruption_prompt import CorruptionPromptEncoder
+from models.missingTask.MFMB_NET.reliability_router import ReliabilityRouterMLP
 from einops.layers.torch import Rearrange
 
 
@@ -114,6 +150,10 @@ def compute_modality_quality_scores(
 
 
 HUB_TO_BOTTLE = {'text': 'avt', 'audio': 'tav', 'vision': 'tva'}
+# alpha / logits / selected_anchor 维序：与下标一致
+HUB_ANCHOR_NAMES = ('text', 'audio', 'vision')
+
+_FUSION_LOG = logging.getLogger('MSA')
 
 
 class GRUencoder(nn.Module):
@@ -162,13 +202,39 @@ class GATE_F(nn.Module):
         self.audio_encoder = C_GATE(args.fusion_a_in, args.fusion_a_hid, args.fusion_gru_layers, args.fusion_drop)
         self.vision_encoder = C_GATE(args.fusion_v_in, args.fusion_v_hid, args.fusion_gru_layers, args.fusion_drop)
 
-        center = getattr(args, 'fusion_center_modality', 'text')
+        # Storage(dict) 对缺失键的 __getattr__ 会返回 False，不能用 getattr(..., default)；用 .get 取默认
+        center = args.get('fusion_center_modality', 'text')
         self.fusion_center_modality = center
+        self.fusion_dynamic_mode = args.get('fusion_dynamic_mode', 'soft')
+        self.use_reliability_router = args.get('use_reliability_router', True)
+        self.fusion_router_temperature = args.get('fusion_router_temperature', 1.0)
+        self.use_corruption_prompt = args.get('use_corruption_prompt', False)
+        self.corruption_prompt_dim = args.get('corruption_prompt_dim', 32)
+        self.use_prompt_in_router = args.get('use_prompt_in_router', False)
+        self.use_prompt_in_fusion = args.get('use_prompt_in_fusion', False)
+
+        router_in = 6
+        if self.use_prompt_in_router and self.use_corruption_prompt:
+            router_in = 6 + self.corruption_prompt_dim
+
+        self.router = None
+        if center == 'dynamic' and self.use_reliability_router:
+            self.router = ReliabilityRouterMLP(
+                router_in,
+                hidden=args.get('fusion_router_hidden', 64),
+                dropout=args.get('fusion_router_drop', 0.1),
+            )
+
+        self.prompt_encoder = None
+        if self.use_corruption_prompt:
+            self.prompt_encoder = CorruptionPromptEncoder(
+                self.corruption_prompt_dim,
+                dropout=args.get('corruption_prompt_drop', 0.0),
+            )
+
         if center == 'dynamic':
-            self.anchor_scorer = nn.Linear(6, 3)
             init_order = 'avt'
         else:
-            self.anchor_scorer = None
             init_order = HUB_TO_BOTTLE[center]
         self.audio_visual_model = BottleAttentionNet(bottle_order=init_order)
 
@@ -186,12 +252,46 @@ class GATE_F(nn.Module):
         self.a_stack_linear = nn.Linear(20, self.common_size)
 
         clf_in = args.fusion_t_hid + args.fusion_a_hid + args.fusion_v_hid + self.common_size * 4 + 90
+        self.utter_dim = clf_in
+        self.prompt_to_utter = None
+        if self.use_prompt_in_fusion and self.use_corruption_prompt:
+            self.prompt_to_utter = nn.Linear(self.corruption_prompt_dim, clf_in)
+            nn.init.zeros_(self.prompt_to_utter.weight)
+            nn.init.zeros_(self.prompt_to_utter.bias)
+
         self.classifier2 = nn.Sequential()
         self.classifier2.add_module('linear_trans_norm', nn.BatchNorm1d(clf_in))
         self.classifier2.add_module('linear_trans_hidden', nn.Linear(clf_in, args.cls_hidden_dim))
         self.classifier2.add_module('linear_trans_activation', nn.ReLU())
         self.classifier2.add_module('linear_trans_drop', nn.Dropout(args.cls_dropout))
         self.classifier2.add_module('linear_trans_final', nn.Linear(args.cls_hidden_dim, 1))
+
+        self._log_fusion_init()
+
+    def _log_fusion_init(self) -> None:
+        c = self.fusion_center_modality
+        if c == 'dynamic':
+            if self.use_reliability_router:
+                _FUSION_LOG.info(
+                    "MFMB fusion: center=dynamic, router=ReliabilityRouterMLP, dynamic_mode=%s, "
+                    "temp=%.4f, prompt=%s, prompt_in_router=%s, prompt_in_fusion=%s",
+                    self.fusion_dynamic_mode,
+                    float(self.fusion_router_temperature),
+                    self.use_corruption_prompt,
+                    self.use_prompt_in_router,
+                    self.use_prompt_in_fusion,
+                )
+            else:
+                _FUSION_LOG.info(
+                    "MFMB fusion: center=dynamic, router=OFF → uniform soft fusion baseline "
+                    "(alpha=1/3 per hub; NOT equivalent to legacy single fixed path). "
+                    "dynamic_mode=%s (soft path only; hard ignored without router). "
+                    "prompt=%s",
+                    self.fusion_dynamic_mode,
+                    self.use_corruption_prompt,
+                )
+        else:
+            _FUSION_LOG.info("MFMB fusion: center=fixed (%s), no dynamic router.", c)
 
     def _stack_for_hub(
         self,
@@ -216,7 +316,19 @@ class GATE_F(nn.Module):
         stack_rep_tv = self.batchnorm(stack_rep_tv.permute(1, 0, 2))
         return stack_rep_ta.reshape(batch_size, -1), stack_rep_tv.reshape(batch_size, -1)
 
-    def forward(self, text_x, audio_x, vision_x):
+    def forward(
+        self,
+        text_x,
+        audio_x,
+        vision_x,
+        return_aux: bool = False,
+        distill_full_modality_prompt: bool = False,
+    ):
+        """
+        distill_full_modality_prompt=True（蒸馏教师分支专用）：
+        corruption prompt 使用「全模态完好」语义——missing 掩码在有效位置上全 1、noise_type=none，
+        不沿用学生侧的缺失/噪声推断；不改变 router / fusion 主数学，仅改 prompt 编码输入。
+        """
         if len(text_x) == 3:
             text_x, text_mask, missing_mask_t = text_x
         else:
@@ -235,6 +347,7 @@ class GATE_F(nn.Module):
 
         B = text_x.size(0)
         device = text_x.device
+        dtype = text_x.dtype
 
         text_x_fusion = text_x.permute(1, 0, 2)
         audio_x_fusion = self.seq_a_mosi(audio_x.permute(0, 2, 1)).permute(2, 0, 1)
@@ -246,19 +359,60 @@ class GATE_F(nn.Module):
             missing_mask_t, missing_mask_a, missing_mask_v,
         )
 
+        prompt_emb = None
+        prompt_debug = None
+        if self.prompt_encoder is not None:
+            if distill_full_modality_prompt:
+                noise_ids = torch.zeros((B,), device=device, dtype=torch.long)
+                mm_t = text_mask.float().clamp(0, 1)
+                mm_a = audio_mask.float().clamp(0, 1)
+                mm_v = vision_mask.float().clamp(0, 1)
+                prompt_emb, prompt_debug = self.prompt_encoder.forward_from_tensors(
+                    mm_t, mm_a, mm_v, text_mask, audio_mask, vision_mask, noise_ids,
+                )
+            else:
+                nid = CorruptionPromptEncoder.noise_id_from_args(self.args)
+                noise_ids = torch.full((B,), int(nid), device=device, dtype=torch.long)
+                prompt_emb, prompt_debug = self.prompt_encoder.forward_from_tensors(
+                    missing_mask_t, missing_mask_a, missing_mask_v,
+                    text_mask, audio_mask, vision_mask, noise_ids,
+                )
+
         hub = self.fusion_center_modality
+        aux: Dict[str, Any] = {}
+        logits = None
+        router_mode = f'fixed:{hub}'
+        selected_anchor: Optional[torch.Tensor] = None
+
         if hub == 'dynamic':
-            anchor_logits = self.anchor_scorer(torch.cat([integrity, log_e], dim=1))
-            anchor_idx = torch.argmax(anchor_logits, dim=1)
+            base_feats = torch.cat([integrity, log_e], dim=1)
+            router_in = base_feats
+            if self.use_prompt_in_router and prompt_emb is not None:
+                router_in = torch.cat([base_feats, prompt_emb], dim=1)
+            tau = max(float(self.fusion_router_temperature), 1e-3)
+            if self.router is not None:
+                logits = self.router(router_in)
+                if str(self.fusion_dynamic_mode).lower() == 'hard':
+                    router_mode = 'dynamic_hard_mlp'
+                    idx = logits.argmax(dim=1)
+                    selected_anchor = idx.detach()
+                    alpha = torch.zeros(B, 3, device=device, dtype=dtype)
+                    alpha.scatter_(1, idx.unsqueeze(1), 1.0)
+                else:
+                    router_mode = 'dynamic_soft_mlp'
+                    alpha = F.softmax(logits / tau, dim=1)
+            else:
+                router_mode = 'dynamic_uniform_soft_baseline'
+                alpha = torch.full((B, 3), 1.0 / 3.0, device=device, dtype=dtype)
+
             av_orders = [HUB_TO_BOTTLE['text'], HUB_TO_BOTTLE['audio'], HUB_TO_BOTTLE['vision']]
             av_list = []
             for o in av_orders:
                 out = self.audio_visual_model(audio_x_fusion, vision_x_fusion, text_x_fusion, bottle_order=o)
                 av_list.append(out[-1])
             av_stack = torch.stack(av_list, dim=1)
-            audio_visual_fusion = av_stack[torch.arange(B, device=device), anchor_idx]
+            audio_visual_fusion = (alpha.unsqueeze(-1) * av_stack).sum(dim=1)
         else:
-            anchor_idx = None
             bo = HUB_TO_BOTTLE[hub]
             audio_visual_fusion = self.audio_visual_model(
                 audio_x_fusion, vision_x_fusion, text_x_fusion, bottle_order=bo
@@ -277,15 +431,45 @@ class GATE_F(nn.Module):
             sta_v, stv_v = self._stack_for_hub('vision', text_rep_common, audio_rep_common, vision_rep_common, B)
             sta_all = torch.stack([sta_t, sta_a, sta_v], dim=1)
             stv_all = torch.stack([stv_t, stv_a, stv_v], dim=1)
-            stack_rep_ta = sta_all[torch.arange(B, device=device), anchor_idx]
-            stack_rep_tv = stv_all[torch.arange(B, device=device), anchor_idx]
+            alpha_stack = alpha.unsqueeze(-1)
+            stack_rep_ta = (alpha_stack * sta_all).sum(dim=1)
+            stack_rep_tv = (alpha_stack * stv_all).sum(dim=1)
+            aux['alpha'] = alpha
+            aux['router_logits'] = logits
+            aux['router_mode'] = router_mode
+            aux['selected_anchor'] = selected_anchor
+            if selected_anchor is not None:
+                aux['selected_anchor_name'] = [HUB_ANCHOR_NAMES[int(i)] for i in selected_anchor.cpu().tolist()]
+            else:
+                aux['selected_anchor_name'] = None
+            aux['hub_order_names'] = list(HUB_ANCHOR_NAMES)
         else:
             stack_rep_ta, stack_rep_tv = self._stack_for_hub(
                 hub, text_rep_common, audio_rep_common, vision_rep_common, B
             )
 
         utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, stack_rep_tv, stack_rep_ta, audio_visual_fusion), dim=1)
-        return self.classifier2(utterance_rep)
+        if self.prompt_to_utter is not None and prompt_emb is not None:
+            utterance_rep = utterance_rep + self.prompt_to_utter(prompt_emb)
+
+        out = self.classifier2(utterance_rep)
+        if return_aux:
+            aux['fused_rep'] = utterance_rep
+            aux['distill_full_modality_prompt'] = bool(distill_full_modality_prompt)
+            aux['integrity'] = integrity
+            aux['log_energy'] = log_e
+            aux['use_prompt_in_router'] = bool(self.use_prompt_in_router and self.prompt_encoder is not None)
+            aux['use_prompt_in_fusion'] = bool(self.prompt_to_utter is not None)
+            aux['prompt_debug'] = prompt_debug
+            aux['router_mode'] = aux.get('router_mode', router_mode)
+            if hub != 'dynamic':
+                aux['router_logits'] = None
+                aux['alpha'] = None
+                aux['selected_anchor'] = None
+                aux['selected_anchor_name'] = None
+                aux['hub_order_names'] = list(HUB_ANCHOR_NAMES)
+            return out, aux
+        return out
 
 
 MODULE_MAP = {
@@ -299,5 +483,24 @@ class Fusion(nn.Module):
         select_model = MODULE_MAP[args.fusionModule]
         self.Model = select_model(args)
 
-    def forward(self, text_x, audio_x, vision_x):
-        return self.Model(text_x, audio_x, vision_x)
+    def forward(
+        self,
+        text_x,
+        audio_x,
+        vision_x,
+        return_aux: bool = False,
+        distill_full_modality_prompt: bool = False,
+    ):
+        """
+        return_aux=False：默认训练路径，仅返回 pred。
+        return_aux=True：返回 (pred, aux)，aux 含 fused_rep（分类头前向量）、router 调试字段、prompt_debug 等，
+        供实验日志与后续蒸馏（阶段 C）复用；不改变默认调用行为。
+        distill_full_modality_prompt：见 GATE_F.forward。
+        """
+        return self.Model(
+            text_x,
+            audio_x,
+            vision_x,
+            return_aux=return_aux,
+            distill_full_modality_prompt=distill_full_modality_prompt,
+        )

@@ -21,6 +21,43 @@ from config.config_regression import ConfigRegression
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+
+def _load_checkpoint_with_warnings(model, ckpt_path, device, logger_):
+    """
+    strict=False 加载；对 missing/unexpected keys 打清晰 warning。
+    dynamic 新版使用 ReliabilityRouterMLP，与旧 checkpoint 中 anchor_scorer(Linear) 不兼容，需重训。
+    """
+    state = torch.load(ckpt_path, map_location=device)
+    result = model.load_state_dict(state, strict=False)
+    missing, unexpected = [], []
+    if result is not None:
+        missing = list(getattr(result, "missing_keys", []) or [])
+        unexpected = list(getattr(result, "unexpected_keys", []) or [])
+    if missing or unexpected:
+        logger_.warning(
+            "Checkpoint load strict=False: %d missing keys, %d unexpected keys. "
+            "If you switched dynamic fusion (MLP router), retrain; old anchor_scorer weights will not map.",
+            len(missing),
+            len(unexpected),
+        )
+        for k in missing[:20]:
+            logger_.warning("  missing: %s", k)
+        if len(missing) > 20:
+            logger_.warning("  ... %d more missing", len(missing) - 20)
+        for k in unexpected[:20]:
+            logger_.warning("  unexpected: %s", k)
+        if len(unexpected) > 20:
+            logger_.warning("  ... %d more unexpected", len(unexpected) - 20)
+    dyn_router = any("router" in k for k in missing)
+    old_anchor = any("anchor_scorer" in k for k in unexpected)
+    if dyn_router or old_anchor:
+        logger_.warning(
+            "Fusion checkpoint mismatch likely: dynamic ReliabilityRouterMLP params missing or legacy "
+            "'anchor_scorer' present in file. Fixed text/audio/vision paths are unaffected structurally; "
+            "dynamic mode should retrain with current code."
+        )
+
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -85,7 +122,7 @@ def run(args):
     atio.do_train(model, dataloader)
     # load pretrained model
     assert os.path.exists(args.model_save_path)
-    model.load_state_dict(torch.load(args.model_save_path))
+    _load_checkpoint_with_warnings(model, args.model_save_path, device, logger)
     model.to(device)
     # do test
     if args.is_tune:
@@ -113,6 +150,10 @@ def run_normal(args):
         # load config
         config = ConfigRegression(args)
         args = config.get_config()
+        if getattr(init_args, 'fusion_dynamic_mode', None) is not None:
+            args.fusion_dynamic_mode = init_args.fusion_dynamic_mode
+        if getattr(init_args, 'use_corruption_prompt', None) is not None:
+            args.use_corruption_prompt = bool(init_args.use_corruption_prompt)
         if i == 0 and args.data_missing:
             missing_rate = '-'.join(str(round(x, 4)) for x in args.missing_rate)
         setup_seed(seed)
@@ -155,7 +196,14 @@ def run_normal(args):
 
 def set_log(args):
     os.makedirs('logs', exist_ok=True)
-    log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
+    # log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
+    log_file_path = (
+        f"logs/{args.modelName}-{args.datasetName}"
+        f"-fc{getattr(args, 'fusion_center_modality', 'text')}"
+        f"-dyn{getattr(args, 'fusion_dynamic_mode', 'na')}"
+        f"-cp{getattr(args, 'use_corruption_prompt', 0)}"
+        f".log"
+    )
     # set logging
     logger = logging.getLogger() 
     logger.setLevel(logging.DEBUG)
@@ -207,6 +255,19 @@ def parse_args():
         default='text',
         choices=['text', 'audio', 'vision', 'dynamic'],
         help='Fusion hub: text=固定文本锚点(avt)；dynamic=按完整度/能量学习打分选锚点。',
+    )
+    parser.add_argument(
+        '--fusion_dynamic_mode',
+        type=str,
+        default=None,
+        choices=['soft', 'hard'],
+        help='仅 dynamic 时有效：soft=三路 softmax 加权；hard=logits argmax。默认用 config。',
+    )
+    parser.add_argument(
+        '--use_corruption_prompt',
+        type=int,
+        default=None,
+        help='1/0 覆盖 config 的 corruption condition；默认用 config。',
     )
     return parser.parse_args()
 

@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -56,6 +57,10 @@ class MFMB_NET():
             losses = []
             model.train()
             train_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
+            train_kd_logit, train_kd_feat = 0.0, 0.0
+            use_distill = self.args.get('use_distill', False)
+            w_l = float(self.args.get('distill_logit_weight', 0.0))
+            w_f = float(self.args.get('distill_feat_weight', 0.0))
             left_epochs = self.args.update_epochs
             with tqdm(dataloader['train']) as td:
                 for batch_data in td:
@@ -80,12 +85,37 @@ class MFMB_NET():
                         labels = labels.view(-1).long()
                     else:
                         labels = labels.view(-1, 1)
-                    prediction, gen_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
+
+                    if use_distill:
+                        prediction, gen_loss, dpack = model(
+                            (text, text_m, text_missing_mask),
+                            (audio, audio_m, audio_mask, audio_missing_mask),
+                            (vision, vision_m, vision_mask, vision_missing_mask),
+                            return_distill=True,
+                        )
+                        kd_fn = F.smooth_l1_loss if str(self.args.get('distill_loss_type', 'mse')).lower() == 'smoothl1' else F.mse_loss
+                        kd_logit = kd_fn(prediction, dpack['teacher_pred'], reduction='mean')
+                        kd_feat = kd_fn(dpack['student_fused_rep'], dpack['teacher_fused_rep'], reduction='mean')
+                        dpack['kd_logit_loss'] = kd_logit.item()
+                        dpack['kd_feat_loss'] = kd_feat.item()
+                        train_kd_logit += dpack['kd_logit_loss']
+                        train_kd_feat += dpack['kd_feat_loss']
+                    else:
+                        prediction, gen_loss = model(
+                            (text, text_m, text_missing_mask),
+                            (audio, audio_m, audio_mask, audio_missing_mask),
+                            (vision, vision_m, vision_mask, vision_missing_mask),
+                        )
+                        kd_logit = prediction.new_zeros(())
+                        kd_feat = prediction.new_zeros(())
+
                     pred_loss = self.criterion(prediction, labels)
                     if epochs > 1:
                         loss = pred_loss + gen_loss
                     else:
                         loss = pred_loss
+                    if use_distill:
+                        loss = loss + w_l * kd_logit + w_f * kd_feat
                     loss.backward()
                     
                     if self.args.grad_clip != -1.0:
@@ -106,11 +136,31 @@ class MFMB_NET():
             train_loss = train_loss / len(dataloader['train'])
             predict_loss = predict_loss / len(dataloader['train'])
             generate_loss = generate_loss / len(dataloader['train'])
+            n_batch = len(dataloader['train'])
+            mean_kd_l = train_kd_logit / n_batch if use_distill else 0.0
+            mean_kd_f = train_kd_feat / n_batch if use_distill else 0.0
             
             pred, true = torch.cat(y_pred), torch.cat(y_true)
             train_results = self.metrics(pred, true)
-            logger.info("TRAIN-(%s) (%d/%d/%d)>> loss: %.4f(pred: %.4f; gen: %.4f) %s" % (self.args.modelName, \
-                        epochs - best_epoch, epochs, self.args.cur_time, train_loss, predict_loss, generate_loss, dict_to_str(train_results)))
+            if use_distill:
+                logger.info(
+                    "TRAIN-(%s) (%d/%d/%d)>> total: %.4f (pred: %.4f; gen: %.4f; kd_logit: %.4f; kd_feat: %.4f) %s"
+                    % (
+                        self.args.modelName,
+                        epochs - best_epoch,
+                        epochs,
+                        self.args.cur_time,
+                        train_loss,
+                        predict_loss,
+                        generate_loss,
+                        mean_kd_l,
+                        mean_kd_f,
+                        dict_to_str(train_results),
+                    )
+                )
+            else:
+                logger.info("TRAIN-(%s) (%d/%d/%d)>> loss: %.4f(pred: %.4f; gen: %.4f) %s" % (self.args.modelName, \
+                            epochs - best_epoch, epochs, self.args.cur_time, train_loss, predict_loss, generate_loss, dict_to_str(train_results)))
             
             val_results = self.do_test(model, dataloader['valid'], mode="VAL")
             cur_valid = val_results[self.args.KeyEval]

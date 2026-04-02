@@ -118,13 +118,35 @@ def maybe_corrupt_text_pair(
     text_corrupt_mode: str,
     text_corrupt_span_frac: float,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """训练用 text_corrupt_train，验证/测试用 text_corrupt_eval。"""
+    """训练用 text_corrupt_train，验证/测试用 text_corrupt_eval；**同时**扰动 clean 与 missing 支路。"""
     rate = text_corrupt_train if training else text_corrupt_eval
     if rate <= 0 or text_corrupt_mode == "none":
         return text, text_m
     text = apply_text_corruption(
         text, corrupt_rate=rate, mode=text_corrupt_mode, span_frac=text_corrupt_span_frac
     )
+    text_m = apply_text_corruption(
+        text_m, corrupt_rate=rate, mode=text_corrupt_mode, span_frac=text_corrupt_span_frac
+    )
+    return text, text_m
+
+
+def maybe_corrupt_text_m_only(
+    text: torch.Tensor,
+    text_m: torch.Tensor,
+    *,
+    training: bool,
+    text_corrupt_train: float,
+    text_corrupt_eval: float,
+    text_corrupt_mode: str,
+    text_corrupt_span_frac: float,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    仅对 **text_m**（缺失/学生支路）做输入级扰动，**text** 保持数据集原始 clean，供蒸馏教师与文本重建目标一致。
+    """
+    rate = text_corrupt_train if training else text_corrupt_eval
+    if rate <= 0 or text_corrupt_mode == "none":
+        return text, text_m
     text_m = apply_text_corruption(
         text_m, corrupt_rate=rate, mode=text_corrupt_mode, span_frac=text_corrupt_span_frac
     )

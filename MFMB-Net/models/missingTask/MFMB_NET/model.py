@@ -1,14 +1,13 @@
+import contextlib
 import torch
 from torch import nn
-from torch.nn import Parameter
-import torch.nn.functional as F
 
 from models.missingTask.MFMB_NET.alignment_1 import Alignment
 from models.missingTask.MFMB_NET.generator import Generator
 from models.subNets.BertTextEncoder import BertTextEncoder
 
 from models.missingTask.MFMB_NET.fusion_599 import Fusion
-from utils.text_corrupt import maybe_corrupt_text_pair
+from utils.text_corrupt import maybe_corrupt_text_m_only
 
 # CMD Loss
 class CMD(nn.Module):
@@ -68,7 +67,6 @@ class RECLoss(nn.Module):
         """
         mask = mask.unsqueeze(-1).expand(pred.shape[0], pred.shape[1], pred.shape[2])
 
-        # 在第 70 行前面加一句，强制让 self.eps 去找 mask 所在的设备
         eps = self.eps.to(mask.device) if isinstance(self.eps, torch.Tensor) else self.eps
         loss = self.loss(pred*mask, target*mask) / (torch.sum(mask) + eps)
 
@@ -78,6 +76,15 @@ class RECLoss(nn.Module):
 
 
 class MFMB_NET(nn.Module):
+    """
+    数据流（蒸馏相关）：
+    - 数据集 clean：text / audio / vision；缺失支路：text_m / audio_m / vision_m。
+    - BERT 前仅对 **text_m** 做 `maybe_corrupt_text_m_only`；**text 不扰动**，保证教师与 gen 目标均为真正 clean 文本。
+    - align / generator / fusion（学生）：text_m, audio_m, vision_m；生成目标为干净 text/audio/vision。
+    - 单教师蒸馏：教师前向在共享模块上 **torch.no_grad + 临时 eval**（text_model / align_subnet / fusion_subnet），
+      关闭 dropout、BN 用累计统计量，避免与 train 模式随机性叠加，比仅 no_grad 更稳。
+    - fusion_aux['fused_rep']：分类头前 utterance 向量（可含 prompt 残差）。
+    """
     def __init__(self, args):
         super(MFMB_NET, self).__init__()
         self.args = args
@@ -99,7 +106,59 @@ class MFMB_NET(nn.Module):
         self.fusion_subnet = Fusion(args)
         
 
-    def forward(self, text, audio, vision):
+    def _distill_teacher_forward(
+        self,
+        text_enc: torch.Tensor,
+        audio: torch.Tensor,
+        vision: torch.Tensor,
+        text_mask: torch.Tensor,
+        audio_mask: torch.Tensor,
+        vision_mask: torch.Tensor,
+    ):
+        """
+        共享单教师：no_grad（默认）+ 对 text_model / align / fusion **临时 eval**，再恢复原 training 标志。
+        教师本步不再次调用 text_model（text_enc 已为学生支路算好）；仍切换 text_model 模式以符合「教师路径涉及模块」一致性与后续扩展。
+        """
+        mods = [self.text_model, self.align_subnet, self.fusion_subnet]
+        backup = [m.training for m in mods]
+        for m in mods:
+            m.eval()
+        try:
+            grad_ctx = (
+                torch.no_grad()
+                if self.args.get('distill_teacher_detach', True)
+                else contextlib.nullcontext()
+            )
+            with grad_ctx:
+                text_ht, audio_ht, vision_ht, _, _, _ = self.align_subnet(text_enc, audio, vision)
+                full_t = text_mask.float().clamp(0, 1)
+                full_a = audio_mask.float().clamp(0, 1)
+                full_v = vision_mask.float().clamp(0, 1)
+                fusion_in_t = (
+                    (text_ht, text_mask, full_t),
+                    (audio_ht, audio_mask, full_a),
+                    (vision_ht, vision_mask, full_v),
+                )
+                pred_t, aux_t = self.fusion_subnet(
+                    *fusion_in_t, return_aux=True, distill_full_modality_prompt=True
+                )
+        finally:
+            for m, was in zip(mods, backup):
+                m.train(was)
+        return pred_t, aux_t
+
+    def forward(self, text, audio, vision, return_fusion_aux=False, return_distill=False):
+        """
+        默认 (return_fusion_aux=False, return_distill=False)：(prediction, gen_loss)，与旧训练一致。
+
+        return_fusion_aux=True：返回 (prediction, gen_loss, fusion_aux)。
+
+        return_distill=True 且 training 且 args.use_distill：
+        返回 (student_prediction, gen_loss, distill_pack)。
+        distill_pack：teacher_pred, teacher_fused_rep, student_fused_rep（均为 fused_rep 语义）。
+        教师分支与共享 align/fusion/BERT；仅输入为 clean 三模态 + distill_full_modality_prompt。
+        默认 distill_teacher_detach=True：教师 **no_grad** 且 **临时 eval** 共享子模块，作稳定监督目标。
+        """
         text, text_m, missing_mask_t = text
     
         audio, audio_m, audio_mask, missing_mask_a = audio
@@ -109,13 +168,13 @@ class MFMB_NET(nn.Module):
        
         text_mask = text[:,1,:]
 
-        text, text_m = maybe_corrupt_text_pair(
+        text, text_m = maybe_corrupt_text_m_only(
             text, text_m,
             training=self.training,
-            text_corrupt_train=getattr(self.args, 'text_corrupt_train', 0.0),
-            text_corrupt_eval=getattr(self.args, 'text_corrupt_eval', 0.0),
-            text_corrupt_mode=getattr(self.args, 'text_corrupt_mode', 'mix'),
-            text_corrupt_span_frac=getattr(self.args, 'text_corrupt_span_frac', 0.4),
+            text_corrupt_train=self.args.get('text_corrupt_train', 0.0),
+            text_corrupt_eval=self.args.get('text_corrupt_eval', 0.0),
+            text_corrupt_mode=self.args.get('text_corrupt_mode', 'mix'),
+            text_corrupt_span_frac=self.args.get('text_corrupt_span_frac', 0.4),
         )
 
         text_m = self.text_model(text_m)
@@ -123,7 +182,18 @@ class MFMB_NET(nn.Module):
        
 
         text_h, audio_h, vision_h, text_h_g, audio_h_g, vision_h_g = self.align_subnet(text_m, audio_m, vision_m)
-        #[batch_size, seq_len, d]
+
+        fusion_in_s = (
+            (text_h, text_mask, missing_mask_t),
+            (audio_h, audio_mask, missing_mask_a),
+            (vision_h, vision_mask, missing_mask_v),
+        )
+
+        use_distill = (
+            self.args.get('use_distill', False)
+            and return_distill
+            and self.training
+        )
 
         if not self.args.without_generator:
         
@@ -137,24 +207,36 @@ class MFMB_NET(nn.Module):
             audio_gen_loss = self.gen_loss(audio_, audio, audio_mask - missing_mask_a)
             vision_gen_loss = self.gen_loss(vision_, vision, vision_mask - missing_mask_v)
 
-            prediction = self.fusion_subnet(
-                (text_h, text_mask, missing_mask_t),
-                (audio_h, audio_mask, missing_mask_a),
-                (vision_h, vision_mask, missing_mask_v),
-            )
-                
-            #prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),text_,audio_,vision_)
-            
-            #torch.Size([24, 1])
-            #24,1
-
-            return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
-            
+            gen = self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
         else:
-            prediction = self.fusion_subnet(
-                (text_h, text_mask, missing_mask_t),
-                (audio_h, audio_mask, missing_mask_a),
-                (vision_h, vision_mask, missing_mask_v),
+            gen = torch.zeros((), device=text.device, dtype=text.dtype)
+
+        if use_distill:
+            pred_s, aux_s = self.fusion_subnet(*fusion_in_s, return_aux=True)
+            pred_t, aux_t = self._distill_teacher_forward(
+                text, audio, vision, text_mask, audio_mask, vision_mask
             )
-            return prediction, torch.Tensor([0]).to(self.args.device)
+            src = self.args.get('distill_feature_source', 'fused_rep')
+            z_s = aux_s[src] if isinstance(src, str) and src in aux_s else aux_s['fused_rep']
+            z_t = aux_t[src] if isinstance(src, str) and src in aux_t else aux_t['fused_rep']
+            r_tc = self.args.get('text_corrupt_train', 0.0) if self.training else self.args.get('text_corrupt_eval', 0.0)
+            mode_tc = str(self.args.get('text_corrupt_mode', 'none')).lower()
+            distill_pack = {
+                'teacher_pred': pred_t,
+                'teacher_fused_rep': z_t,
+                'student_fused_rep': z_s,
+                'student_fusion_aux': aux_s,
+                'teacher_used_eval_mode': True,
+                'teacher_prompt_full_modality': bool(aux_t.get('distill_full_modality_prompt', False)),
+                'teacher_text_corrupted': False,
+                'student_text_m_corrupted': bool(r_tc > 0 and mode_tc != 'none'),
+            }
+            return pred_s, gen, distill_pack
+
+        if return_fusion_aux:
+            prediction, fusion_aux = self.fusion_subnet(*fusion_in_s, return_aux=True)
+            return prediction, gen, fusion_aux
+
+        prediction = self.fusion_subnet(*fusion_in_s)
+        return prediction, gen
         

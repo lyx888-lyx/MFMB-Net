@@ -39,7 +39,7 @@ class ConfigRegression():
                             ))
     
     def __datasetCommonParams(self):
-        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
+        root_dataset_dir = '/root/lanyun-tmp/MMSA/Datasets'
         tmp = {
             'mosi':{
                 'aligned': {
@@ -175,6 +175,32 @@ class ConfigRegression():
                 # use attention mask for Transformer
                 'attn_mask': True, 
                 'update_epochs': 4,
+
+                # fusion_center_modality: text|audio|vision|dynamic（须写入 config；Storage 缺失键时 __getattr__ 会为 False）
+                'fusion_center_modality': 'text',
+                # fusion_dynamic_mode:
+                #   soft + use_reliability_router=True → ReliabilityRouterMLP + softmax(alpha)
+                #   hard + use_reliability_router=True → logits argmax one-hot
+                #   soft + use_reliability_router=False → 均匀 alpha=1/3（uniform soft baseline，非旧版单路径）
+                'fusion_dynamic_mode': 'soft',
+                'use_reliability_router': True,
+                'fusion_router_temperature': 1.0,
+                'fusion_router_hidden': 64,
+                'fusion_router_drop': 0.1,
+                'use_corruption_prompt': False,
+                'corruption_prompt_dim': 32,
+                'corruption_prompt_drop': 0.0,
+                'use_prompt_in_router': False,
+                'use_prompt_in_fusion': False,
+
+                # 单教师蒸馏（阶段 C）：教师 = clean 文本（不 text_corrupt）+ clean 音画 + full-modality prompt；
+                # 教师前向共享模块临时 eval + no_grad；学生仅 text_m 走 maybe_corrupt_text_m_only
+                'use_distill': False,
+                'distill_teacher_detach': True,
+                'distill_logit_weight': 0.5,
+                'distill_feat_weight': 1.0,
+                'distill_feature_source': 'fused_rep',
+                'distill_loss_type': 'mse',
             },
             # dataset
             'datasetParas':{
