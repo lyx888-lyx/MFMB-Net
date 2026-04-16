@@ -157,6 +157,8 @@ class ConfigRegression():
         return tmp
 
     def __MFMB_NET(self):
+        # 蒸馏 / 在线扰动 / kd 分项 / anchor 导出 / distill_teacher_center_modality 等由 run.py argparse 注入
+        # （勿在 commonParas 重复同名键，否则会覆盖命令行）。
         tmp = {
             'commonParas':{
                 'data_missing': True,

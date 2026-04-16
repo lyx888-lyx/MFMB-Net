@@ -59,10 +59,16 @@ class MMDataset(Dataset):
             # Current Support Unaligned Data Missing.
             self.text_m, self.text_length, self.text_mask, self.text_missing_mask = self.generate_m(self.text[:,0,:], self.text[:,1,:], None,
                                                                                         self.args.missing_rate[0], self.args.missing_seed[0], mode='text')
-            self.text_m, self.text_corrupt_mask = self.generate_text_corruption(
-                self.text_m, self.text_mask, self.text_missing_mask,
-                self.text_corrupt_rate, self.text_corrupt_seed, self.text_corrupt_mode, self.text_corrupt_span_frac
-            )
+            # use_distill=1 且 online_text_corrupt=1：扰动改在 model 内只做一次，此处跳过，避免与 maybe_corrupt_text_m_only 双重污染
+            _online_corrupt = int(getattr(self.args, 'online_text_corrupt', 0)) != 0
+            _use_distill = int(getattr(self.args, 'use_distill', 0)) != 0
+            if _use_distill and _online_corrupt:
+                self.text_corrupt_mask = np.zeros_like(self.text_missing_mask, dtype=np.float32)
+            else:
+                self.text_m, self.text_corrupt_mask = self.generate_text_corruption(
+                    self.text_m, self.text_mask, self.text_missing_mask,
+                    self.text_corrupt_rate, self.text_corrupt_seed, self.text_corrupt_mode, self.text_corrupt_span_frac
+                )
             Input_ids_m = np.expand_dims(self.text_m, 1)
             Input_mask = np.expand_dims(self.text_mask, 1)
             Segment_ids = np.expand_dims(self.text[:,2,:], 1)

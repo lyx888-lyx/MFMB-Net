@@ -21,6 +21,27 @@ from config.config_regression import ConfigRegression
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+
+def _sanitize_log_tag(s: str) -> str:
+    out = []
+    for c in (s or '').strip():
+        if c.isalnum() or c in '-_.':
+            out.append(c)
+        else:
+            out.append('_')
+    t = ''.join(out).strip('_')[:200]
+    return t if t else 'run'
+
+
+def _ensure_run_slug(args):
+    """与日志、checkpoint、结果 CSV 共用的运行标识；便于多任务对照。"""
+    tag = (getattr(args, 'log_tag', '') or '').strip()
+    if tag:
+        args.run_slug = _sanitize_log_tag(tag)
+    else:
+        args.run_slug = f'{time.strftime("%Y%m%d-%H%M%S")}_{os.getpid()}'
+
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -39,9 +60,11 @@ def run(args):
     tct = getattr(args, 'text_corrupt_train', 0.0)
     tce = getattr(args, 'text_corrupt_eval', 0.0)
     mr = '-'.join(str(round(x, 4)) for x in getattr(args, 'missing_rate', (0.0, 0.0, 0.0)))
+    rs = getattr(args, 'run_slug', '') or ''
+    rs_part = f'-{rs}' if rs else ''
     args.model_save_path = os.path.join(
         args.model_save_dir,
-        f'{args.modelName}-{args.datasetName}-{args.train_mode}-m{mr}-fc{fc}-tc{tct}-te{tce}.pth',
+        f'{args.modelName}-{args.datasetName}-{args.train_mode}-m{mr}-fc{fc}-tc{tct}-te{tce}{rs_part}.pth',
     )
     # indicate used gpu
     if len(args.gpu_ids) == 0 and torch.cuda.is_available() and pynvml is not None:
@@ -94,6 +117,14 @@ def run(args):
     else:
         results = atio.do_test(model, dataloader['test'], mode="TEST")
 
+    # 如果不需要长期保留 checkpoint，测试完就删掉
+    if (not args.keep_ckpt) and os.path.exists(args.model_save_path):
+        try:
+            os.remove(args.model_save_path)
+            logger.info(f"Removed checkpoint: {args.model_save_path}")
+        except Exception as e:
+            logger.warning(f"Failed to remove checkpoint {args.model_save_path}: {e}")
+    
     del model
     torch.cuda.empty_cache()
     gc.collect()
@@ -132,9 +163,11 @@ def run_normal(args):
         getattr(args, 'text_corrupt_mode', 'mix')
     )
     fc = getattr(args, 'fusion_center_modality', 'text')
+    rs = getattr(args, 'run_slug', '') or ''
+    rs_part = f'-{rs}' if rs else ''
     save_path = os.path.join(
         args.res_save_dir,
-        f'{args.datasetName}-{args.train_mode}-{missing_rate}-fc{fc}{corrupt_tag}.csv',
+        f'{args.datasetName}-{args.train_mode}-{missing_rate}-fc{fc}{corrupt_tag}{rs_part}.csv',
     )
     if not os.path.exists(args.res_save_dir):
         os.makedirs(args.res_save_dir)
@@ -155,9 +188,15 @@ def run_normal(args):
 
 def set_log(args):
     os.makedirs('logs', exist_ok=True)
-    log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
+    tag = (getattr(args, 'log_tag', '') or '').strip()
+    slug = getattr(args, 'run_slug', None) or f'{time.strftime("%Y%m%d-%H%M%S")}_{os.getpid()}'
+    if tag:
+        stem = f'{args.modelName}-{args.datasetName}-{slug}'
+    else:
+        stem = f'{args.modelName}-{args.datasetName}_{slug}'
+    log_file_path = os.path.join('logs', f'{stem}.log')
     # set logging
-    logger = logging.getLogger() 
+    logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
     for ph in logger.handlers:
@@ -168,6 +207,8 @@ def set_log(args):
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter_file)
     logger.addHandler(fh)
+    args.log_file_path = os.path.abspath(log_file_path)
+    logger.info('Log file: %s', args.log_file_path)
     return logger
 
 def parse_args():
@@ -178,6 +219,12 @@ def parse_args():
                         help='support mfmb_net')
     parser.add_argument('--datasetName', type=str, default='mosi',
                         help='support mosi/mosei')
+    parser.add_argument(
+        '--log_tag',
+        type=str,
+        default='',
+        help='运行标识：写入日志 / checkpoint / results/normals 汇总 CSV 的文件名；为空则自动 时间戳_PID，多任务互不覆盖。例: --log_tag dynamic_te04',
+    )
     parser.add_argument('--num_workers', type=int, default=0,
                         help='num workers of loading data')
     parser.add_argument('--model_save_dir', type=str, default='results/models',
@@ -201,12 +248,117 @@ def parse_args():
                         help='fraction of corrupt tokens allocated to contiguous spans when using span/mix mode')
     parser.add_argument('--text_corrupt_seed', type=int, default=2026,
                         help='base seed for text corruption benchmark')
+    parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
     parser.add_argument(
         '--fusion_center_modality',
         type=str,
         default='text',
         choices=['text', 'audio', 'vision', 'dynamic'],
         help='Fusion hub: text=固定文本锚点(avt)；dynamic=按完整度/能量学习打分选锚点。',
+    )
+    parser.add_argument(
+        '--use_distill',
+        type=int,
+        default=0,
+        help='1=启用 clean-teacher / corrupted-student 蒸馏（与缺失+text_m 扰动配合）；0=关闭，保持旧实验。',
+    )
+    parser.add_argument(
+        '--distill_teacher_detach',
+        type=int,
+        default=1,
+        help='1=教师前向 torch.no_grad（默认）；0=允许梯度经共享权重回传教师分支（慎用）。',
+    )
+    parser.add_argument(
+        '--distill_lambda_logit',
+        type=float,
+        default=0.1,
+        help='最终预测 logit / 回归值蒸馏项权重（回归默认 MSE）；保守默认 0.1。',
+    )
+    parser.add_argument(
+        '--distill_lambda_feat',
+        type=float,
+        default=0.1,
+        help='融合表示 fused_rep 蒸馏（SmoothL1）权重；保守默认 0.1。',
+    )
+    parser.add_argument(
+        '--distill_lambda_rel',
+        type=float,
+        default=0.0,
+        help='batch 关系矩阵蒸馏权重；默认 0 关闭，仅保留接口。',
+    )
+    parser.add_argument(
+        '--distill_temperature',
+        type=float,
+        default=2.0,
+        help='分类任务 logit 蒸馏温度 T（回归忽略）；用于 KL 扩展。',
+    )
+    parser.add_argument(
+        '--distill_clean_weight',
+        type=float,
+        default=0.0,
+        help='全模态齐且文本无扰动样本的蒸馏权重；默认 0（仅困难样本参与蒸馏）。',
+    )
+    parser.add_argument(
+        '--use_kd_logit',
+        type=int,
+        default=1,
+        help='1=总损失中加入 logit 蒸馏项（仍受 distill_lambda_logit 缩放）；0=关闭。',
+    )
+    parser.add_argument(
+        '--use_kd_feat',
+        type=int,
+        default=1,
+        help='1=总损失中加入 fused_rep 蒸馏；0=关闭。',
+    )
+    parser.add_argument(
+        '--use_kd_rel',
+        type=int,
+        default=0,
+        help='1=总损失中加入关系矩阵蒸馏；默认 0；需同时设 distill_lambda_rel>0 才有实际梯度。',
+    )
+    parser.add_argument(
+        '--online_text_corrupt',
+        type=int,
+        default=0,
+        help='1=仅在 model 内对 text_m 做在线扰动（dataset 侧会跳过 corruption）；0=默认用 dataset 侧一次扰动，不在 model 内二次扰动。',
+    )
+    parser.add_argument(
+        '--strict_original_loss',
+        type=int,
+        default=0,
+        help='1=从第 1 个 epoch 起 pred+gen+kd 全上；0=默认 warmup：第 1 个 epoch 仅 pred+gen，第 2 个 epoch 起加 kd。',
+    )
+    parser.add_argument(
+        '--return_fusion_aux',
+        type=int,
+        default=0,
+        help='1=valid/test 前向额外返回 fusion aux（不写 loss）；用于调试。训练阶段由蒸馏自动取 aux。',
+    )
+    parser.add_argument(
+        '--save_anchor_analysis',
+        type=int,
+        default=0,
+        help='1=在指定 split 的 eval/test 上导出 teacher/student anchor 对齐 CSV（dynamic 诊断）；0=关闭且无额外开销。',
+    )
+    parser.add_argument(
+        '--anchor_analysis_split',
+        type=str,
+        default='test',
+        choices=['test', 'valid', 'both', 'all'],
+        help='anchor 导出所跑的 dataloader：test / valid / both(=test+valid) / all(同 both)。',
+    )
+    parser.add_argument(
+        '--anchor_analysis_dir',
+        type=str,
+        default='results/anchor_analysis',
+        help='anchor analysis 样本级与汇总 CSV 的输出目录。',
+    )
+    parser.add_argument(
+        '--distill_teacher_center_modality',
+        type=str,
+        default='same_as_student',
+        choices=['same_as_student', 'text', 'audio', 'vision', 'dynamic'],
+        help='蒸馏教师 fusion hub：same_as_student=与 fusion_center_modality 一致；否则仅教师前向临时覆盖（实验2：教师固定锚点+学生 dynamic）。',
     )
     return parser.parse_args()
 
@@ -216,6 +368,7 @@ if __name__ == '__main__':
     ma = args.missing_a if args.missing_a is not None else args.missing
     mv = args.missing_v if args.missing_v is not None else args.missing
     args.missing_rate = tuple([mt, ma, mv])
+    _ensure_run_slug(args)
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]
     run_normal(args)

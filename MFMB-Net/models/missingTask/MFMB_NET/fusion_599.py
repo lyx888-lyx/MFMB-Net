@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from models.missingTask.MFMB_NET.modules.transformer import TransformerEncoder
 from einops.layers.torch import Rearrange
@@ -216,7 +216,7 @@ class GATE_F(nn.Module):
         stack_rep_tv = self.batchnorm(stack_rep_tv.permute(1, 0, 2))
         return stack_rep_ta.reshape(batch_size, -1), stack_rep_tv.reshape(batch_size, -1)
 
-    def forward(self, text_x, audio_x, vision_x):
+    def forward(self, text_x, audio_x, vision_x, return_aux: bool = False):
         if len(text_x) == 3:
             text_x, text_mask, missing_mask_t = text_x
         else:
@@ -247,6 +247,7 @@ class GATE_F(nn.Module):
         )
 
         hub = self.fusion_center_modality
+        anchor_logits = None
         if hub == 'dynamic':
             anchor_logits = self.anchor_scorer(torch.cat([integrity, log_e], dim=1))
             anchor_idx = torch.argmax(anchor_logits, dim=1)
@@ -258,7 +259,8 @@ class GATE_F(nn.Module):
             av_stack = torch.stack(av_list, dim=1)
             audio_visual_fusion = av_stack[torch.arange(B, device=device), anchor_idx]
         else:
-            anchor_idx = None
+            _idx_map = {'text': 0, 'audio': 1, 'vision': 2}
+            anchor_idx = torch.full((B,), int(_idx_map[hub]), device=device, dtype=torch.long)
             bo = HUB_TO_BOTTLE[hub]
             audio_visual_fusion = self.audio_visual_model(
                 audio_x_fusion, vision_x_fusion, text_x_fusion, bottle_order=bo
@@ -285,7 +287,21 @@ class GATE_F(nn.Module):
             )
 
         utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, stack_rep_tv, stack_rep_ta, audio_visual_fusion), dim=1)
-        return self.classifier2(utterance_rep)
+        logits = self.classifier2(utterance_rep)
+        if return_aux:
+            aux: Dict[str, Any] = {
+                'fused_rep': utterance_rep,
+                'text_rep': text_rep,
+                'audio_rep': audio_rep,
+                'vision_rep': vision_rep,
+                'integrity': integrity,
+                'log_e': log_e,
+                'anchor_idx': anchor_idx,
+                'anchor_logits': anchor_logits,
+                'router_weights': None,
+            }
+            return logits, aux
+        return logits
 
 
 MODULE_MAP = {
@@ -299,5 +315,5 @@ class Fusion(nn.Module):
         select_model = MODULE_MAP[args.fusionModule]
         self.Model = select_model(args)
 
-    def forward(self, text_x, audio_x, vision_x):
-        return self.Model(text_x, audio_x, vision_x)
+    def forward(self, text_x, audio_x, vision_x, return_aux: bool = False):
+        return self.Model(text_x, audio_x, vision_x, return_aux=return_aux)

@@ -118,7 +118,7 @@ def maybe_corrupt_text_pair(
     text_corrupt_mode: str,
     text_corrupt_span_frac: float,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """训练用 text_corrupt_train，验证/测试用 text_corrupt_eval。"""
+    """训练用 text_corrupt_train，验证/测试用 text_corrupt_eval；text 与 text_m 同时扰动（旧逻辑）。"""
     rate = text_corrupt_train if training else text_corrupt_eval
     if rate <= 0 or text_corrupt_mode == "none":
         return text, text_m
@@ -129,3 +129,40 @@ def maybe_corrupt_text_pair(
         text_m, corrupt_rate=rate, mode=text_corrupt_mode, span_frac=text_corrupt_span_frac
     )
     return text, text_m
+
+
+def maybe_corrupt_text_m_only(
+    text: torch.Tensor,
+    text_m: torch.Tensor,
+    *,
+    training: bool,
+    text_corrupt_train: float,
+    text_corrupt_eval: float,
+    text_corrupt_mode: str,
+    text_corrupt_span_frac: float,
+    return_corrupt_mask: bool = False,
+) -> Tuple[torch.Tensor, ...]:
+    """
+    仅扰动 text_m，保持 text 干净（供 clean-teacher / corrupted-student 蒸馏）。
+    训练用 text_corrupt_train，验证/测试用 text_corrupt_eval。
+    若 return_corrupt_mask=True，额外返回本步在 token 维上的扰动掩码 [B, L]（1 表示该位置相对输入被改过）。
+
+    注意：默认与 data/load_data.generate_text_corruption 二选一，由 args.online_text_corrupt 控制；
+    online_text_corrupt=0 时不要在 model 中调用本函数，以免 text_m 被污染两次。
+    """
+    rate = text_corrupt_train if training else text_corrupt_eval
+    if rate <= 0 or text_corrupt_mode == "none":
+        if return_corrupt_mask:
+            B, _, L = text_m.shape
+            mask = torch.zeros(B, L, device=text_m.device, dtype=text_m.dtype)
+            return text, text_m, mask
+        return text, text_m
+    orig_ids = text_m[:, 0, :].long()
+    text_m_out = apply_text_corruption(
+        text_m, corrupt_rate=rate, mode=text_corrupt_mode, span_frac=text_corrupt_span_frac
+    )
+    attn = text_m[:, 1, :]
+    changed = (text_m_out[:, 0, :].long() != orig_ids).float() * (attn > 0).float()
+    if return_corrupt_mask:
+        return text, text_m_out, changed
+    return text, text_m_out

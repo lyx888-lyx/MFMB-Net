@@ -1,0 +1,2 @@
+total_samples,agreement_rate,disagreement_rate,teacher_text_ratio,teacher_audio_ratio,teacher_vision_ratio,student_text_ratio,student_audio_ratio,student_vision_ratio,mae_when_match,mae_when_mismatch,corr_when_match,corr_when_mismatch,dataset,fusion_center_modality,distill_teacher_center_modality,text_corrupt_train,text_corrupt_eval,seed,split
+672,1.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.99648725598984,nan,0.6218271677017863,nan,mosi,dynamic,dynamic,0.1,0.3,111,test

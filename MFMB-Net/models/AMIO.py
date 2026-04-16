@@ -27,5 +27,18 @@ class AMIO(nn.Module):
         lastModel = MODEL_MAP[key]
         self.Model = lastModel(args)
 
-    def forward(self, text_x, audio_x, video_x):
-        return self.Model(text_x, audio_x, video_x)
+    def forward(
+        self,
+        text_x,
+        audio_x,
+        video_x,
+        text_corrupt_mask=None,
+        return_fusion_aux=False,
+        return_anchor_analysis=False,
+    ):
+        return self.Model(
+            text_x, audio_x, video_x,
+            text_corrupt_mask=text_corrupt_mask,
+            return_fusion_aux=return_fusion_aux,
+            return_anchor_analysis=return_anchor_analysis,
+        )
