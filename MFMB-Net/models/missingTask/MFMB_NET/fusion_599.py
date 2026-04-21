@@ -1,3 +1,4 @@
+import logging
 import torch
 from torch import nn
 from torch.nn import Parameter
@@ -177,8 +178,16 @@ class GATE_F(nn.Module):
         self.MLP_Communicator1=MLP_Communicator(self.dim,2,hidden_size=64,depth=1)
         self.MLP_Communicator2 = MLP_Communicator(self.dim, 2, hidden_size=64, depth=1)
         self.args=args
-        self.batch_size=self.args.batch_size
-        #self.batch_size=24 
+        self.fusion_center_modality = getattr(args, 'fusion_center_modality', 'text')
+        if self.fusion_center_modality not in ('text', 'audio', 'vision'):
+            raise ValueError("fusion_center_modality must be 'text', 'audio', or 'vision'")
+        # Ut/Uv/Ua in common space; used for logging (micro-fusion pair semantics).
+        self._micro_fusion_pair_labels = {
+            'text': ('(text,vision)', '(text,audio)'),
+            'audio': ('(audio,text)', '(audio,vision)'),
+            'vision': ('(vision,text)', '(vision,audio)'),
+        }[self.fusion_center_modality]
+        self._micro_fusion_debug_printed = False
         #stack
         self.t_stack_linear=nn.Linear(36,self.common_size)
         self.v_stack_linear = nn.Linear(48,self.common_size)
@@ -200,8 +209,14 @@ class GATE_F(nn.Module):
         self.classifier2.add_module('linear_trans_activation', nn.ReLU())
         self.classifier2.add_module('linear_trans_drop', nn.Dropout(args.cls_dropout))
         self.classifier2.add_module('linear_trans_final', nn.Linear(args.cls_hidden_dim, 1))
-     
-        
+
+        log = logging.getLogger(__name__)
+        log.info(
+            'GATE_F fusion_center_modality=%s micro_fusion_pairs=%s, %s (dim0 of stack = center modality)',
+            self.fusion_center_modality,
+            self._micro_fusion_pair_labels[0],
+            self._micro_fusion_pair_labels[1],
+        )
 
     def forward(self, text_x, audio_x, vision_x):
         text_x, text_mask = text_x
@@ -231,23 +246,43 @@ class GATE_F(nn.Module):
         vision_rep = self.vision_encoder(vision_x, vision_mask)
         vision_rep_common = self.v_stack_linear(vision_rep)
 
- 
-        stack_rep_ta=torch.stack((text_rep_common,audio_rep_common),dim=0) #(2,batch_size,common_size) 2,24,64
-        stack_rep_tv = torch.stack((text_rep_common, vision_rep_common), dim=0)#2,24,64
+        # Ut, Uv, Ua in common_size (paper notation); micro-fusion pairs share one BN then flatten.
+        # Original MFMB-Net: stack(Ut,Uv), stack(Ut,Ua). Coarse-to-fine here is BatchNorm1d(2) (MLP_Communicator* unused in forward).
+        Ut, Uv, Ua = text_rep_common, vision_rep_common, audio_rep_common
+        if self.fusion_center_modality == 'text':
+            pair1 = torch.stack((Ut, Uv), dim=0)
+            pair2 = torch.stack((Ut, Ua), dim=0)
+        elif self.fusion_center_modality == 'audio':
+            pair1 = torch.stack((Ua, Ut), dim=0)
+            pair2 = torch.stack((Ua, Uv), dim=0)
+        else:
+            pair1 = torch.stack((Uv, Ut), dim=0)
+            pair2 = torch.stack((Uv, Ua), dim=0)
 
-        stack_rep_ta = self.batchnorm(stack_rep_ta.permute(1,0,2))# batchsize,channanl,commonsize 24,2,64
-        stack_rep_tv = self.batchnorm(stack_rep_tv.permute(1,0,2))  # 24,2,64
+        def _micro_fusion_stack_to_vec(stack_2mod):
+            x = self.batchnorm(stack_2mod.permute(1, 0, 2))
+            # Use actual batch dim (valid/test may use last batch < args.batch_size when drop_last=False).
+            return x.reshape(x.size(0), -1)
 
-        #Adjust dim for classification
-        #stack_rep_tv = stack_rep_tv.reshape(24, -1)
-        stack_rep_tv=stack_rep_tv.reshape(self.batch_size,-1)
-        stack_rep_ta = stack_rep_ta.reshape(self.batch_size, -1)
-        
+        stack_local_a = _micro_fusion_stack_to_vec(pair1)
+        stack_local_b = _micro_fusion_stack_to_vec(pair2)
+
+        if not self._micro_fusion_debug_printed:
+            log = logging.getLogger(__name__)
+            log.info(
+                '[GATE_F] first forward: fusion_center_modality=%s pair1=%s pair2=%s',
+                self.fusion_center_modality,
+                self._micro_fusion_pair_labels[0],
+                self._micro_fusion_pair_labels[1],
+            )
+            self._micro_fusion_debug_printed = True
 
         #utterance_rep = torch.cat((stack_rep_tv, stack_rep_ta,audio_visual_fusion), dim=1)
         #return self.classifier1(utterance_rep)
 
-        utterance_rep = torch.cat((text_rep, audio_rep, vision_rep,stack_rep_tv,stack_rep_ta,audio_visual_fusion), dim=1)
+        utterance_rep = torch.cat(
+            (text_rep, audio_rep, vision_rep, stack_local_a, stack_local_b, audio_visual_fusion), dim=1
+        )
 
 
         

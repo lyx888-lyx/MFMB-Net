@@ -1,0 +1,9 @@
+{
+  "csv_path": "/code/MFMB-Net/MFMB-Net/results/predictions/predictions_mosi_fc_text_seed1111_test.csv",
+  "n_samples": 672,
+  "datasetName": "mosi",
+  "seed": 1111,
+  "fusion_center_modality": "text",
+  "dataPath_runtime": "/sharefile/lyx_model/MMSA/Datasets/MOSI/unaligned_50.pkl",
+  "dataloader_note": "Metrics and export iterate DataLoader with drop_last=True; any incomplete final batch of the test split is omitted."
+}

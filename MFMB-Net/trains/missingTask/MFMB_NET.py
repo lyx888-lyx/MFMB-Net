@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from utils.functions import dict_to_str
 from utils.metricsTop import MetricsTop
+from utils.test_prediction_export import save_test_predictions_csv
 
 logger = logging.getLogger('MSA')
 
@@ -123,6 +124,8 @@ class MFMB_NET():
         model.eval()
         y_pred, y_true = [], []
         eval_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
+        collect_export = getattr(self.args, 'export_test_predictions', False) and mode == "TEST"
+        all_idx, all_ids = [], []
         with torch.no_grad():
             with tqdm(dataloader) as td:
                 for batch_data in td:
@@ -158,6 +161,18 @@ class MFMB_NET():
 
                     y_pred.append(outputs.cpu())
                     y_true.append(labels.cpu())
+                    if collect_export:
+                        bi = batch_data['index']
+                        if torch.is_tensor(bi):
+                            bi = bi.cpu().numpy().reshape(-1).tolist()
+                        else:
+                            bi = np.atleast_1d(bi).reshape(-1).tolist()
+                        all_idx.extend(bi)
+                        bid = batch_data['id']
+                        if torch.is_tensor(bid):
+                            bid = bid.cpu().numpy()
+                        bid = np.atleast_1d(bid).reshape(-1)
+                        all_ids.extend([str(x) for x in bid])
         eval_loss = eval_loss / len(dataloader)
 
         pred, true = torch.cat(y_pred), torch.cat(y_true)
@@ -165,4 +180,6 @@ class MFMB_NET():
         eval_results["Loss"] = round(eval_loss, 4)
 
         logger.info("%s-(%s) >> %s" % (mode, self.args.modelName, dict_to_str(eval_results)))
+        if collect_export:
+            save_test_predictions_csv(self.args, pred, true, all_idx, all_ids, mode)
         return eval_results

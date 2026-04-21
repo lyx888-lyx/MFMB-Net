@@ -31,6 +31,11 @@ class ConfigRegression():
                             **commonArgs,
                             **HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name],
                             ))
+        # Hyper-parameter dict overwrites parse_args; restore selected CLI ablation flags.
+        self.args.fusion_center_modality = getattr(args, 'fusion_center_modality', 'text')
+        self.args.debug_data_inspect = getattr(args, 'debug_data_inspect', False)
+        self.args.export_test_predictions = getattr(args, 'export_test_predictions', False)
+        self.args.export_pred_dir = getattr(args, 'export_pred_dir', 'results/predictions')
     
     def __datasetCommonParams(self):
         root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
@@ -159,6 +164,8 @@ class ConfigRegression():
                 'alignmentModule': 'crossmodal_attn',
                 'generatorModule': 'linear',
                 'fusionModule': 'c_gate',
+                # Micro-fusion in GATE_F (stack order); overridden by run.py --fusion_center_modality
+                'fusion_center_modality': 'text',
                 'recloss_type': 'combine',
                 'without_generator': False,
 

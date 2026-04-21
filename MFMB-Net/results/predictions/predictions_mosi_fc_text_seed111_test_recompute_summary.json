@@ -1,0 +1,22 @@
+{
+  "csv": "/code/MFMB-Net/MFMB-Net/results/predictions/predictions_mosi_fc_text_seed111_test.csv",
+  "datasetName_used": "mosi",
+  "n_rows": 672,
+  "metricsTop_style": {
+    "Has0_acc_2": 0.7932,
+    "Has0_F1_score": 0.7927,
+    "Non0_acc_2": 0.8037,
+    "Non0_F1_score": 0.8027,
+    "Mult_acc_5": 0.4688,
+    "Mult_acc_7": 0.4137,
+    "MAE": 0.824999988079071,
+    "Corr": 0.752
+  },
+  "explicit": {
+    "MAE_raw": 0.824958,
+    "Corr_raw": 0.752037,
+    "MAE_clip_m3_p3": 0.823041,
+    "Mult_acc_7_explicit": 0.41369,
+    "Mult_acc_5_explicit": 0.46875
+  }
+}

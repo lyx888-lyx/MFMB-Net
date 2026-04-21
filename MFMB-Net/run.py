@@ -18,6 +18,12 @@ from config.config_regression import ConfigRegression
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
+
+def _fusion_center_slug(args):
+    """Isolate logs / results / checkpoints between micro-fusion settings."""
+    return getattr(args, 'fusion_center_modality', 'text')
+
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -32,7 +38,11 @@ def run(args):
     '''
     if not os.path.exists(args.model_save_dir):
         os.makedirs(args.model_save_dir)
-    args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
+    fc = _fusion_center_slug(args)
+    args.model_save_path = os.path.join(
+        args.model_save_dir,
+        f'{args.modelName}-{args.datasetName}-{args.train_mode}-fc_{fc}.pth',
+    )
     # indicate used gpu
     if len(args.gpu_ids) == 0 and torch.cuda.is_available():
         # load free-most gpu
@@ -85,6 +95,14 @@ def run(args):
     else:
         results = atio.do_test(model, dataloader['test'], mode="TEST")
 
+    # 如果不需要长期保留 checkpoint，测试完就删掉
+    if (not args.keep_ckpt) and os.path.exists(args.model_save_path):
+        try:
+            os.remove(args.model_save_path)
+            logger.info(f"Removed checkpoint: {args.model_save_path}")
+        except Exception as e:
+            logger.warning(f"Failed to remove checkpoint {args.model_save_path}: {e}")
+
     del model
     torch.cuda.empty_cache()
     gc.collect()
@@ -93,7 +111,8 @@ def run(args):
     return results
 
 def run_normal(args):
-    args.res_save_dir = os.path.join(args.res_save_dir, 'normals')
+    fc = _fusion_center_slug(args)
+    args.res_save_dir = os.path.join(args.res_save_dir, 'normals', fc)
     init_args = args
     model_results = []
     seeds = args.seeds
@@ -137,7 +156,9 @@ def run_normal(args):
     logger.info('Results are added to %s...' %(save_path))
 
 def set_log(args):
-    log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
+    os.makedirs('logs', exist_ok=True)
+    fc = _fusion_center_slug(args)
+    log_file_path = os.path.join('logs', f'{args.modelName}-{args.datasetName}-fc_{fc}.log')
     # set logging
     logger = logging.getLogger() 
     logger.setLevel(logging.DEBUG)
@@ -169,6 +190,30 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument(
+        '--fusion_center_modality',
+        type=str,
+        default='text',
+        choices=['text', 'audio', 'vision'],
+        help="GATE_F micro-fusion stack center: 'text' (Ut,U*), 'audio' (Ua,U*), 'vision'/video (Uv,U*). Default=text matches original MFMB-Net.",
+    )
+    parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
+    parser.add_argument(
+        '--debug_data_inspect',
+        action='store_true',
+        help='Log actual dataPath, pickle path, split sizes, shapes, missing=0.0 checks, first batch (once).',
+    )
+    parser.add_argument(
+        '--export_test_predictions',
+        action='store_true',
+        help='After TEST, save predictions CSV (+ meta json) under export_pred_dir; one file per seed.',
+    )
+    parser.add_argument(
+        '--export_pred_dir',
+        type=str,
+        default='results/predictions',
+        help='Directory for exported test prediction CSVs.',
+    )
     return parser.parse_args()
 
 if __name__ == '__main__':

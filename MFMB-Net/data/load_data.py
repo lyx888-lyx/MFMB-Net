@@ -1,5 +1,6 @@
 import os
 import logging
+import math
 import pickle
 import numpy as np
 
@@ -10,6 +11,165 @@ from torch.utils.data import Dataset, DataLoader
 __all__ = ['MMDataLoader']
 
 logger = logging.getLogger('MSA')
+
+# Audio/vision "valid" timesteps: input_mask==1 from generate_m (length-based); padding: mask==0.
+
+
+def _expected_batches_and_samples(n_samples, batch_size, drop_last):
+    if drop_last:
+        nb = n_samples // batch_size
+        covered = nb * batch_size
+    else:
+        nb = math.ceil(n_samples / batch_size) if batch_size > 0 else 0
+        covered = n_samples
+    return nb, covered
+
+
+def _log_av_m_vs_orig_breakdown(split_name, audio, audio_m, audio_mask, vision, vision_m, vision_mask, eps=1e-5):
+    """Where audio_m differs from audio: valid timesteps (mask==1) vs padding (mask==0)."""
+    for name, x, xm, mask in (
+        ('audio', audio, audio_m, audio_mask),
+        ('vision', vision, vision_m, vision_mask),
+    ):
+        diff = np.abs(xm.astype(np.float64) - x.astype(np.float64))
+        # mask (N,T) -> broadcast to (N,T,D) for element-wise stats (cannot index diff with (N,T,1) bool)
+        valid_t = mask[:, :, np.newaxis] > 0
+        valid_3d = np.broadcast_to(valid_t, diff.shape)
+        invalid_3d = ~valid_3d
+        changed = diff > eps
+        n_valid_el = int(np.sum(valid_3d))
+        n_invalid_el = int(np.sum(invalid_3d))
+        cv = int(np.sum(changed & valid_3d))
+        ci = int(np.sum(changed & invalid_3d))
+        max_v = float(np.nanmax(np.where(valid_3d, diff, np.nan))) if np.any(valid_3d) else float('nan')
+        max_i = float(np.nanmax(np.where(invalid_3d, diff, np.nan))) if np.any(invalid_3d) else float('nan')
+        logger.info(
+            "[DATA] [%s] %s: total_elem_changed=%d (valid_timestep_changed=%d, padding_changed=%d) "
+            "(valid_elems=%d pad_elems=%d) max_abs_diff_valid=%.6e max_abs_diff_padding=%.6e",
+            split_name,
+            name,
+            cv + ci,
+            cv,
+            ci,
+            n_valid_el,
+            n_invalid_el,
+            max_v,
+            max_i,
+        )
+
+
+def _log_dataset_runtime_inspect(args, datasets, data_loaders=None, dl_settings=None):
+    """One-time log: actual dataPath, shapes, split sizes, missing=0.0 sanity (train split)."""
+    ap = os.path.abspath(args.dataPath)
+    logger.info("[DATA] ========== runtime dataset inspect ==========")
+    logger.info("[DATA] dataPath (abs): %s", ap)
+    logger.info("[DATA] datasetName=%s train_mode=%s", args.datasetName, args.train_mode)
+    aligned = "aligned" if args.need_data_aligned else "unaligned"
+    logger.info("[DATA] need_data_aligned=%s -> using %s pipeline", args.need_data_aligned, aligned)
+    tr = datasets['train']
+    va = datasets['valid']
+    te = datasets['test']
+    logger.info("[DATA] split sizes: train=%d valid=%d test=%d", len(tr), len(va), len(te))
+    logger.info(
+        "[DATA] train arrays: text.shape=%s audio.shape=%s vision.shape=%s",
+        tr.text.shape, tr.audio.shape, tr.vision.shape,
+    )
+    td, ad, vd = tr.get_feature_dim()
+    logger.info("[DATA] per-modality feature dim: text=%d audio=%d vision=%d", td, ad, vd)
+    logger.info("[DATA] labels['M'].shape (train)=%s", tr.labels['M'].shape)
+
+    if getattr(args, 'data_missing', False):
+        mr = getattr(args, 'missing_rate', (0.0, 0.0, 0.0))
+        logger.info("[DATA] data_missing=True missing_rate=%s", mr)
+        if mr[0] == 0.0 and mr[1] == 0.0 and mr[2] == 0.0:
+            t_eq = np.allclose(tr.text_m, tr.text)
+            a_eq = np.allclose(tr.audio_m, tr.audio)
+            v_eq = np.allclose(tr.vision_m, tr.vision)
+            logger.info(
+                "[DATA] missing=0.0 equiv check (train, float): text_m==text %s, audio_m==audio %s, vision_m==vision %s",
+                t_eq, a_eq, v_eq,
+            )
+            if not t_eq:
+                logger.info("[DATA] |text_m - text| max=%.6e", np.abs(tr.text_m - tr.text).max())
+            if not a_eq:
+                logger.info("[DATA] |audio_m - audio| max=%.6e", np.abs(tr.audio_m - tr.audio).max())
+            if not v_eq:
+                logger.info("[DATA] |vision_m - vision| max=%.6e", np.abs(tr.vision_m - tr.vision).max())
+            tmm = tr.text_missing_mask
+            logger.info(
+                "[DATA] text_missing_mask: min=%s max=%s (expect all 1 when no drops)",
+                float(tmm.min()), float(tmm.max()),
+            )
+            _log_av_m_vs_orig_breakdown(
+                'train',
+                tr.audio,
+                tr.audio_m,
+                tr.audio_mask,
+                tr.vision,
+                tr.vision_m,
+                tr.vision_mask,
+            )
+            aud_valid_changed = int(
+                np.sum(
+                    (np.abs(tr.audio_m - tr.audio) > 1e-5)
+                    & (tr.audio_mask[:, :, np.newaxis] > 0)
+                )
+            )
+            vis_valid_changed = int(
+                np.sum(
+                    (np.abs(tr.vision_m - tr.vision) > 1e-5)
+                    & (tr.vision_mask[:, :, np.newaxis] > 0)
+                )
+            )
+            if aud_valid_changed == 0 and vis_valid_changed == 0:
+                logger.info(
+                    "[DATA] CONCLUSION (train, missing=0.0): audio_m/vision_m differ from original "
+                    "only on padding/invalid timesteps (length-based audio_mask/vision_mask); "
+                    "valid timesteps match audio/vision."
+                )
+            else:
+                logger.warning(
+                    "[DATA] CONCLUSION (train, missing=0.0): effective non-padding positions are altered "
+                    "(audio valid elems changed: %d, vision valid elems changed: %d).",
+                    aud_valid_changed,
+                    vis_valid_changed,
+                )
+    if data_loaders is not None:
+        batch = next(iter(data_loaders['train']))
+        lab = batch['labels']['M']
+        logger.info(
+            "[DATA] first train batch tensors: text=%s audio=%s vision=%s labels_M=%s",
+            tuple(batch['text'].shape),
+            tuple(batch['audio'].shape),
+            tuple(batch['vision'].shape),
+            tuple(lab.shape),
+        )
+        bs = args.batch_size
+        for split in ('train', 'valid', 'test'):
+            dl = data_loaders[split]
+            n = len(datasets[split])
+            cfg = (dl_settings or {}).get(split, {})
+            sh = cfg.get('shuffle', True)
+            dl_drop = cfg.get('drop_last', True)
+            nb, cov = _expected_batches_and_samples(n, bs, dl_drop)
+            logger.info(
+                "[DATA] DataLoader[%s]: shuffle=%s drop_last=%s batch_size=%d -> batches=%d samples_covered=%d (split_len=%d)%s",
+                split,
+                sh,
+                dl_drop,
+                bs,
+                nb,
+                cov,
+                n,
+                '' if cov == n else ' [PARTIAL_COVERAGE]',
+            )
+        logger.info(
+            "[DATA] valid/test: shuffle=False drop_last=False — full split covered for metrics & prediction export.",
+        )
+        logger.info(
+            "[DATA] train: shuffle=True drop_last=True — last partial batch skipped (training only).",
+        )
+    logger.info("[DATA] ========== end dataset inspect ==========")
 
 class MMDataset(Dataset):
     def __init__(self, args, mode='train'):
@@ -208,14 +368,23 @@ def MMDataLoader(args):
     if 'seq_lens' in args:
         args.seq_lens = datasets['train'].get_seq_len() 
 
+    _dl_kwargs = {
+        'train': dict(shuffle=True, drop_last=True),
+        'valid': dict(shuffle=False, drop_last=False),
+        'test': dict(shuffle=False, drop_last=False),
+    }
     dataLoader = {
-        ds: DataLoader(datasets[ds],
-                       batch_size=args.batch_size,
-                       num_workers=args.num_workers,
-                       shuffle=True,
-                       drop_last=True
-                       )
+        ds: DataLoader(
+            datasets[ds],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            shuffle=_dl_kwargs[ds]['shuffle'],
+            drop_last=_dl_kwargs[ds]['drop_last'],
+        )
         for ds in datasets.keys()
     }
-    
+
+    if getattr(args, 'debug_data_inspect', False) or getattr(args, 'export_test_predictions', False):
+        _log_dataset_runtime_inspect(args, datasets, dataLoader, _dl_kwargs)
+
     return dataLoader
