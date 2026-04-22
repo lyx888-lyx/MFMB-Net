@@ -24,6 +24,46 @@ def _fusion_center_slug(args):
     return getattr(args, 'fusion_center_modality', 'text')
 
 
+def _apply_missing_rates(args):
+    """Resolve per-modality missing rates; set args.missing_rate tuple.
+
+    Rules:
+    - Each modality uses --text_missing_rate / --audio_missing_rate / --vision_missing_rate when given.
+    - Otherwise falls back to --missing.
+    - All resolved values must lie in [0, 1].
+    """
+    m = float(getattr(args, 'missing', 0.0))
+    if not (0.0 <= m <= 1.0):
+        raise ValueError('--missing must be in [0, 1], got %s' % (m,))
+
+    def _one(flag_name, raw):
+        if raw is None:
+            return m
+        v = float(raw)
+        if not (0.0 <= v <= 1.0):
+            raise ValueError('%s must be in [0, 1], got %s' % (flag_name, v))
+        return v
+
+    args.text_missing_rate = _one(
+        '--text_missing_rate', getattr(args, 'text_missing_rate', None)
+    )
+    args.audio_missing_rate = _one(
+        '--audio_missing_rate', getattr(args, 'audio_missing_rate', None)
+    )
+    args.vision_missing_rate = _one(
+        '--vision_missing_rate', getattr(args, 'vision_missing_rate', None)
+    )
+    args.missing_rate = (args.text_missing_rate, args.audio_missing_rate, args.vision_missing_rate)
+
+
+def _missing_results_slug(args):
+    """CSV filename segment: single number if symmetric, else t/a/v tag (asymmetric)."""
+    t, a, v = args.text_missing_rate, args.audio_missing_rate, args.vision_missing_rate
+    if t == a == v:
+        return str(t)
+    return 't%s_a%s_v%s' % (t, a, v)
+
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -124,7 +164,7 @@ def run_normal(args):
         config = ConfigRegression(args)
         args = config.get_config()
         if i == 0 and args.data_missing:
-            missing_rate = str(args.missing_rate[0])
+            missing_rate = _missing_results_slug(args)
         setup_seed(seed)
         args.seed = seed
         logger.info('Start running %s...' %(args.modelName))
@@ -189,13 +229,36 @@ def parse_args():
                         help='path to save results.')
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
-    parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument(
+        '--missing',
+        type=float,
+        default=0.0,
+        help='Default missing rate for all modalities [0,1]. Used when a per-modality rate is not set.',
+    )
+    parser.add_argument(
+        '--text_missing_rate',
+        type=float,
+        default=None,
+        help='Text missing rate [0,1]. Default: same as --missing.',
+    )
+    parser.add_argument(
+        '--audio_missing_rate',
+        type=float,
+        default=None,
+        help='Audio missing rate [0,1]. Default: same as --missing.',
+    )
+    parser.add_argument(
+        '--vision_missing_rate',
+        type=float,
+        default=None,
+        help='Vision missing rate [0,1]. Default: same as --missing.',
+    )
     parser.add_argument(
         '--fusion_center_modality',
         type=str,
         default='text',
-        choices=['text', 'audio', 'vision'],
-        help="GATE_F micro-fusion stack center: 'text' (Ut,U*), 'audio' (Ua,U*), 'vision'/video (Uv,U*). Default=text matches original MFMB-Net.",
+        choices=['text', 'audio', 'vision', 'dynamic_missing'],
+        help="GATE_F micro-fusion stack center: 'text' (Ut,U*), 'audio' (Ua,U*), 'vision' (Uv,U*), or 'dynamic_missing' (per-sample center from missing masks only). Default=text.",
     )
     parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
     parser.add_argument(
@@ -218,7 +281,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    args.missing_rate = tuple([args.missing, args.missing, args.missing])
+    _apply_missing_rates(args)
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]
     run_normal(args)

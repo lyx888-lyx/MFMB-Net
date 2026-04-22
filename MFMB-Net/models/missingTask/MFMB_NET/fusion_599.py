@@ -7,6 +7,86 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from models.missingTask.MFMB_NET.modules.transformer import TransformerEncoder
 from einops.layers.torch import Rearrange
+
+# Modality index order for micro-fusion dynamic center (tie-break: text > audio > vision == argmax on this axis).
+_MOD_TEXT, _MOD_AUDIO, _MOD_VISION = 0, 1, 2
+
+
+def _compute_modality_valid_ratios_from_missing(
+    text_missing_mask,
+    audio_missing_mask,
+    vision_missing_mask,
+    text_content_mask,
+    audio_content_mask,
+    vision_content_mask,
+):
+    """Per-sample valid ratios (text, audio, vision) from missing masks only.
+
+    Definitions (see data/load_data.py ``generate_m``):
+    - *content_mask*: 1 on non-padding timesteps, 0 on padding. Text uses the BERT
+      attention mask row (same as fusion ``text_mask``). Audio/vision masks are
+      1 for frames ``0 .. length-1`` and 0 for padded frames.
+    - *missing_mask*: ``(rand > missing_rate) * content_mask``, then text forces
+      CLS and last real token to 1. So on padding both masks are 0; on content
+      positions, 1 means observed after missing simulation, 0 means intentionally
+      dropped.
+
+    For each modality and sample:
+        denom = sum(content_mask)  (effective sequence length, excludes padding)
+        valid_ratio = sum(missing_mask) / max(denom, 1)
+        missing_ratio = 1 - valid_ratio  (fraction of content timesteps dropped)
+
+    Returns:
+        valid_ratios: FloatTensor [B, 3] columns (text, audio, vision).
+    """
+    def _ratio(mm, cm):
+        denom = cm.sum(dim=1).clamp(min=1).to(dtype=torch.float32)
+        num = mm.sum(dim=1).to(dtype=torch.float32)
+        return num / denom
+
+    r_t = _ratio(text_missing_mask, text_content_mask)
+    r_a = _ratio(audio_missing_mask, audio_content_mask)
+    r_v = _ratio(vision_missing_mask, vision_content_mask)
+    return torch.stack((r_t, r_a, r_v), dim=1)
+
+
+def _select_dynamic_center_from_missing(valid_ratios, min_valid_ratio=1e-3):
+    """Rule router: among modalities with valid_ratio >= min_valid_ratio, pick
+    the highest valid_ratio; ties break as text > audio > vision by argmax
+    order (text column index 0).
+
+    Args:
+        valid_ratios: [B, 3] (text, audio, vision).
+        min_valid_ratio: treat modality as unavailable below this threshold.
+
+    Returns:
+        center_idx: LongTensor [B] with values 0=text, 1=audio, 2=vision.
+    """
+    eligible = valid_ratios >= min_valid_ratio
+    scores = valid_ratios.clone()
+    scores = scores.masked_fill(~eligible, float('-inf'))
+    center_idx = scores.argmax(dim=1)
+    return center_idx
+
+
+def _micro_fusion_pairs_from_centers(Ut, Ua, Uv, center_idx):
+    """Build [2, B, D] stacks: row0 = center modality, matching fixed-center semantics.
+
+    Ut/Ua/Uv are [B, D] with fixed naming: text, audio, vision common projections.
+    center_idx: [B] in {0,1,2} for text/audio/vision center.
+    """
+    # U_stacked[m, b, :] = modality m for sample b
+    U_stacked = torch.stack((Ut, Ua, Uv), dim=0)
+    b = torch.arange(Ut.size(0), device=Ut.device, dtype=torch.long)
+    cent = U_stacked[center_idx, b]
+    # Second modality in pair1 / pair2 for each fixed center mode (see GATE_F):
+    p1_other = torch.tensor((2, 0, 0), device=Ut.device, dtype=torch.long)[center_idx]
+    p2_other = torch.tensor((1, 2, 1), device=Ut.device, dtype=torch.long)[center_idx]
+    other1 = U_stacked[p1_other, b]
+    other2 = U_stacked[p2_other, b]
+    pair1 = torch.stack((cent, other1), dim=0)
+    pair2 = torch.stack((cent, other2), dim=0)
+    return pair1, pair2
 class MLP_block(nn.Module):
     def __init__(self,input_size,hidden_size,dropout=0.5):
         super().__init__()
@@ -179,15 +259,24 @@ class GATE_F(nn.Module):
         self.MLP_Communicator2 = MLP_Communicator(self.dim, 2, hidden_size=64, depth=1)
         self.args=args
         self.fusion_center_modality = getattr(args, 'fusion_center_modality', 'text')
-        if self.fusion_center_modality not in ('text', 'audio', 'vision'):
-            raise ValueError("fusion_center_modality must be 'text', 'audio', or 'vision'")
+        if self.fusion_center_modality not in ('text', 'audio', 'vision', 'dynamic_missing'):
+            raise ValueError(
+                "fusion_center_modality must be 'text', 'audio', 'vision', or 'dynamic_missing'"
+            )
         # Ut/Uv/Ua in common space; used for logging (micro-fusion pair semantics).
-        self._micro_fusion_pair_labels = {
-            'text': ('(text,vision)', '(text,audio)'),
-            'audio': ('(audio,text)', '(audio,vision)'),
-            'vision': ('(vision,text)', '(vision,audio)'),
-        }[self.fusion_center_modality]
+        if self.fusion_center_modality == 'dynamic_missing':
+            self._micro_fusion_pair_labels = (
+                '(per-sample: center from missing masks)',
+                '(pair1/pair2 follow text/audio/vision center rules)',
+            )
+        else:
+            self._micro_fusion_pair_labels = {
+                'text': ('(text,vision)', '(text,audio)'),
+                'audio': ('(audio,text)', '(audio,vision)'),
+                'vision': ('(vision,text)', '(vision,audio)'),
+            }[self.fusion_center_modality]
         self._micro_fusion_debug_printed = False
+        self._dynamic_missing_first_batch_logged = False
         #stack
         self.t_stack_linear=nn.Linear(36,self.common_size)
         self.v_stack_linear = nn.Linear(48,self.common_size)
@@ -218,7 +307,7 @@ class GATE_F(nn.Module):
             self._micro_fusion_pair_labels[1],
         )
 
-    def forward(self, text_x, audio_x, vision_x):
+    def forward(self, text_x, audio_x, vision_x, missing_masks_for_dynamic_center=None):
         text_x, text_mask = text_x
 
         #mosi mosei
@@ -249,7 +338,26 @@ class GATE_F(nn.Module):
         # Ut, Uv, Ua in common_size (paper notation); micro-fusion pairs share one BN then flatten.
         # Original MFMB-Net: stack(Ut,Uv), stack(Ut,Ua). Coarse-to-fine here is BatchNorm1d(2) (MLP_Communicator* unused in forward).
         Ut, Uv, Ua = text_rep_common, vision_rep_common, audio_rep_common
-        if self.fusion_center_modality == 'text':
+        if self.fusion_center_modality == 'dynamic_missing':
+            if missing_masks_for_dynamic_center is None:
+                raise ValueError(
+                    'fusion_center_modality=dynamic_missing requires missing_masks_for_dynamic_center '
+                    '(tuple of text/audio/vision missing_mask tensors).'
+                )
+            mm_t, mm_a, mm_v = missing_masks_for_dynamic_center
+            if mm_t.shape != text_mask.shape or mm_a.shape != audio_mask.shape or mm_v.shape != vision_mask.shape:
+                raise ValueError(
+                    'missing_masks_for_dynamic_center shapes must match fusion masks '
+                    f'(text {text_mask.shape} vs mm_t {mm_t.shape}, '
+                    f'audio {audio_mask.shape} vs mm_a {mm_a.shape}, '
+                    f'vision {vision_mask.shape} vs mm_v {mm_v.shape}).'
+                )
+            valid_ratios = _compute_modality_valid_ratios_from_missing(
+                mm_t, mm_a, mm_v, text_mask, audio_mask, vision_mask
+            )
+            center_idx = _select_dynamic_center_from_missing(valid_ratios)
+            pair1, pair2 = _micro_fusion_pairs_from_centers(Ut, Ua, Uv, center_idx)
+        elif self.fusion_center_modality == 'text':
             pair1 = torch.stack((Ut, Uv), dim=0)
             pair2 = torch.stack((Ut, Ua), dim=0)
         elif self.fusion_center_modality == 'audio':
@@ -276,6 +384,24 @@ class GATE_F(nn.Module):
                 self._micro_fusion_pair_labels[1],
             )
             self._micro_fusion_debug_printed = True
+
+        if self.fusion_center_modality == 'dynamic_missing' and not self._dynamic_missing_first_batch_logged:
+            log = logging.getLogger(__name__)
+            n_txt = int((center_idx == _MOD_TEXT).sum().item())
+            n_aud = int((center_idx == _MOD_AUDIO).sum().item())
+            n_vis = int((center_idx == _MOD_VISION).sum().item())
+            log.info('[GATE_F] dynamic_missing: enabled; per-sample micro-fusion center from valid ratios only.')
+            log.info(
+                '[GATE_F] dynamic_missing (first batch): batch center counts: text=%d, audio=%d, vision=%d (batch_size=%d)',
+                n_txt, n_aud, n_vis, center_idx.numel(),
+            )
+            log.info(
+                '[GATE_F] dynamic_missing (first batch): mean valid_ratio text=%.4f audio=%.4f vision=%.4f',
+                float(valid_ratios[:, 0].mean().item()),
+                float(valid_ratios[:, 1].mean().item()),
+                float(valid_ratios[:, 2].mean().item()),
+            )
+            self._dynamic_missing_first_batch_logged = True
 
         #utterance_rep = torch.cat((stack_rep_tv, stack_rep_ta,audio_visual_fusion), dim=1)
         #return self.classifier1(utterance_rep)
@@ -304,6 +430,6 @@ class Fusion(nn.Module):
 
         self.Model = select_model(args)
 
-    def forward(self, text_x, audio_x, vision_x):
+    def forward(self, text_x, audio_x, vision_x, missing_masks_for_dynamic_center=None):
 
-        return self.Model(text_x, audio_x, vision_x)
+        return self.Model(text_x, audio_x, vision_x, missing_masks_for_dynamic_center)

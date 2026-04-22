@@ -80,7 +80,14 @@ def _log_dataset_runtime_inspect(args, datasets, data_loaders=None, dl_settings=
 
     if getattr(args, 'data_missing', False):
         mr = getattr(args, 'missing_rate', (0.0, 0.0, 0.0))
-        logger.info("[DATA] data_missing=True missing_rate=%s", mr)
+        mg = float(getattr(args, 'missing', mr[0]))
+        tr = float(getattr(args, 'text_missing_rate', mr[0]))
+        ar = float(getattr(args, 'audio_missing_rate', mr[1]))
+        vr = float(getattr(args, 'vision_missing_rate', mr[2]))
+        logger.info("[DATA] data_missing=True")
+        logger.info("[DATA] missing(global)=%s (CLI --missing default for unset modalities)", mg)
+        logger.info("[DATA] text_missing_rate=%s audio_missing_rate=%s vision_missing_rate=%s", tr, ar, vr)
+        logger.info("[DATA] missing_rate tuple (T,A,V) used in generate_m=%s", mr)
         if mr[0] == 0.0 and mr[1] == 0.0 and mr[2] == 0.0:
             t_eq = np.allclose(tr.text_m, tr.text)
             a_eq = np.allclose(tr.audio_m, tr.audio)

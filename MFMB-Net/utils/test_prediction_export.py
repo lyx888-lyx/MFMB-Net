@@ -89,6 +89,10 @@ def save_test_predictions_csv(args, pred_1d, true_1d, indices, ids, mode):
         'datasetName': ds,
         'seed': int(seed) if seed is not None else None,
         'fusion_center_modality': fc,
+        'missing': float(getattr(args, 'missing', 0.0)),
+        'text_missing_rate': float(getattr(args, 'text_missing_rate', getattr(args, 'missing', 0.0))),
+        'audio_missing_rate': float(getattr(args, 'audio_missing_rate', getattr(args, 'missing', 0.0))),
+        'vision_missing_rate': float(getattr(args, 'vision_missing_rate', getattr(args, 'missing', 0.0))),
         'dataPath_runtime': getattr(args, 'dataPath', ''),
         'dataloader_note': (
             'Test DataLoader: shuffle=False, drop_last=False — full test split in metrics/export.'

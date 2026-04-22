@@ -36,6 +36,23 @@ class ConfigRegression():
         self.args.debug_data_inspect = getattr(args, 'debug_data_inspect', False)
         self.args.export_test_predictions = getattr(args, 'export_test_predictions', False)
         self.args.export_pred_dir = getattr(args, 'export_pred_dir', 'results/predictions')
+        # Per-modality missing rates (run.py resolves fallbacks to --missing).
+        self.args.missing = float(getattr(args, 'missing', 0.0))
+
+        def _rate_or_global(name):
+            v = getattr(args, name, None)
+            if v is None:
+                return float(self.args.missing)
+            return float(v)
+
+        self.args.text_missing_rate = _rate_or_global('text_missing_rate')
+        self.args.audio_missing_rate = _rate_or_global('audio_missing_rate')
+        self.args.vision_missing_rate = _rate_or_global('vision_missing_rate')
+        self.args.missing_rate = (
+            self.args.text_missing_rate,
+            self.args.audio_missing_rate,
+            self.args.vision_missing_rate,
+        )
     
     def __datasetCommonParams(self):
         root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
@@ -164,7 +181,7 @@ class ConfigRegression():
                 'alignmentModule': 'crossmodal_attn',
                 'generatorModule': 'linear',
                 'fusionModule': 'c_gate',
-                # Micro-fusion in GATE_F (stack order); overridden by run.py --fusion_center_modality
+                # Micro-fusion in GATE_F: text | audio | vision | dynamic_missing; CLI --fusion_center_modality overrides.
                 'fusion_center_modality': 'text',
                 'recloss_type': 'combine',
                 'without_generator': False,
