@@ -96,7 +96,7 @@ class MFMB_NET(nn.Module):
         self.fusion_subnet = Fusion(args)
         
 
-    def forward(self, text, audio, vision):
+    def forward(self, text, audio, vision, return_anchor_aux=False):
         text, text_m, missing_mask_t = text
     
         audio, audio_m, audio_mask, missing_mask_a = audio
@@ -127,22 +127,40 @@ class MFMB_NET(nn.Module):
             audio_gen_loss = self.gen_loss(audio_, audio, audio_mask - missing_mask_a)
             vision_gen_loss = self.gen_loss(vision_, vision, vision_mask - missing_mask_v)
 
-            prediction = self.fusion_subnet(
-                (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),
+            fusion_kw = dict(
                 missing_masks_for_dynamic_center=(missing_mask_t, missing_mask_a, missing_mask_v),
+                return_anchor_aux=return_anchor_aux,
             )
-                
-            #prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),text_,audio_,vision_)
-            
-            #torch.Size([24, 1])
-            #24,1
+            if return_anchor_aux:
+                prediction, anchor_aux = self.fusion_subnet(
+                    (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask), **fusion_kw
+                )
+                return (
+                    prediction,
+                    self.args.weight_gen_loss[0] * text_gen_loss
+                    + self.args.weight_gen_loss[1] * audio_gen_loss
+                    + self.args.weight_gen_loss[2] * vision_gen_loss,
+                    anchor_aux,
+                )
 
+            prediction = self.fusion_subnet(
+                (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask), **fusion_kw
+            )
             return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
             
         else:
-            prediction = self.fusion_subnet(
-                (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),
+            fusion_kw = dict(
                 missing_masks_for_dynamic_center=(missing_mask_t, missing_mask_a, missing_mask_v),
+                return_anchor_aux=return_anchor_aux,
+            )
+            if return_anchor_aux:
+                prediction, anchor_aux = self.fusion_subnet(
+                    (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask), **fusion_kw
+                )
+                return prediction, torch.Tensor([0]).to(self.args.device), anchor_aux
+
+            prediction = self.fusion_subnet(
+                (text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask), **fusion_kw
             )
             return prediction, torch.Tensor([0]).to(self.args.device)
         

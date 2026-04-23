@@ -258,7 +258,37 @@ def parse_args():
         type=str,
         default='text',
         choices=['text', 'audio', 'vision', 'dynamic_missing'],
-        help="GATE_F micro-fusion stack center: 'text' (Ut,U*), 'audio' (Ua,U*), 'vision' (Uv,U*), or 'dynamic_missing' (per-sample center from missing masks only). Default=text.",
+        help="GATE_F micro-fusion: 'text'/'audio'/'vision' fixed stacks, or 'dynamic_missing' (soft blend of three centers; missing-only weights). Default=text.",
+    )
+    parser.add_argument(
+        '--dynamic_anchor_prior_text',
+        type=float,
+        default=0.30,
+        help='Soft dynamic anchor: logit prior for text center (before beta*r). Typical: > prior_audio.',
+    )
+    parser.add_argument(
+        '--dynamic_anchor_prior_audio',
+        type=float,
+        default=0.24,
+        help='Soft dynamic anchor: logit prior for audio center.',
+    )
+    parser.add_argument(
+        '--dynamic_anchor_prior_vision',
+        type=float,
+        default=0.22,
+        help='Soft dynamic anchor: logit prior for vision center.',
+    )
+    parser.add_argument(
+        '--dynamic_anchor_beta',
+        type=float,
+        default=2.0,
+        help='Soft dynamic anchor: scale on valid_ratio in logits (prior + beta * r).',
+    )
+    parser.add_argument(
+        '--dynamic_anchor_min_valid',
+        type=float,
+        default=1e-3,
+        help='Soft dynamic anchor: modalities with valid_ratio below this get near-zero weight.',
     )
     parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
     parser.add_argument(

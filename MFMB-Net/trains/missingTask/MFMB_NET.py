@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from utils.functions import dict_to_str
 from utils.metricsTop import MetricsTop
-from utils.test_prediction_export import save_test_predictions_csv
+from utils.test_prediction_export import save_anchor_center_summary, save_test_predictions_csv
 
 logger = logging.getLogger('MSA')
 
@@ -125,7 +125,9 @@ class MFMB_NET():
         y_pred, y_true = [], []
         eval_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
         collect_export = getattr(self.args, 'export_test_predictions', False) and mode == "TEST"
+        collect_anchor = mode == "TEST"
         all_idx, all_ids = [], []
+        anchor_w_parts, anchor_vr_parts = [], []
         with torch.no_grad():
             with tqdm(dataloader) as td:
                 for batch_data in td:
@@ -149,7 +151,22 @@ class MFMB_NET():
                     else:
                         labels = labels.view(-1, 1)
 
-                    outputs, gen_loss = model((text, text_m, text_missing_mask), (audio, audio_m, audio_mask, audio_missing_mask), (vision, vision_m, vision_mask, vision_missing_mask))
+                    if collect_anchor:
+                        outputs, gen_loss, anchor_aux = model(
+                            (text, text_m, text_missing_mask),
+                            (audio, audio_m, audio_mask, audio_missing_mask),
+                            (vision, vision_m, vision_mask, vision_missing_mask),
+                            return_anchor_aux=True,
+                        )
+                        anchor_w_parts.append(anchor_aux['soft_weights'].detach().float().cpu().numpy())
+                        anchor_vr_parts.append(anchor_aux['valid_ratios'].detach().float().cpu().numpy())
+                    else:
+                        outputs, gen_loss = model(
+                            (text, text_m, text_missing_mask),
+                            (audio, audio_m, audio_mask, audio_missing_mask),
+                            (vision, vision_m, vision_mask, vision_missing_mask),
+                            return_anchor_aux=False,
+                        )
 
                     pred_loss = self.criterion(outputs, labels)
                     total_loss = pred_loss + gen_loss
@@ -180,6 +197,21 @@ class MFMB_NET():
         eval_results["Loss"] = round(eval_loss, 4)
 
         logger.info("%s-(%s) >> %s" % (mode, self.args.modelName, dict_to_str(eval_results)))
-        if collect_export:
+        if collect_anchor and len(anchor_w_parts) > 0:
+            anchor_w = np.concatenate(anchor_w_parts, axis=0)
+            anchor_vr = np.concatenate(anchor_vr_parts, axis=0)
+            save_anchor_center_summary(self.args, anchor_w, anchor_vr, mode)
+            if collect_export:
+                save_test_predictions_csv(
+                    self.args,
+                    pred,
+                    true,
+                    all_idx,
+                    all_ids,
+                    mode,
+                    anchor_weights=anchor_w,
+                    anchor_valid_ratios=anchor_vr,
+                )
+        elif collect_export:
             save_test_predictions_csv(self.args, pred, true, all_idx, all_ids, mode)
         return eval_results

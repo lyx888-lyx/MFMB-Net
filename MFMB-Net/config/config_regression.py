@@ -53,6 +53,12 @@ class ConfigRegression():
             self.args.audio_missing_rate,
             self.args.vision_missing_rate,
         )
+        # Soft dynamic micro-fusion anchor (GATE_F dynamic_missing only); CLI overrides hyper dict.
+        self.args.dynamic_anchor_prior_text = float(getattr(args, 'dynamic_anchor_prior_text', 0.30))
+        self.args.dynamic_anchor_prior_audio = float(getattr(args, 'dynamic_anchor_prior_audio', 0.24))
+        self.args.dynamic_anchor_prior_vision = float(getattr(args, 'dynamic_anchor_prior_vision', 0.22))
+        self.args.dynamic_anchor_beta = float(getattr(args, 'dynamic_anchor_beta', 2.0))
+        self.args.dynamic_anchor_min_valid = float(getattr(args, 'dynamic_anchor_min_valid', 1e-3))
     
     def __datasetCommonParams(self):
         root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
@@ -183,6 +189,12 @@ class ConfigRegression():
                 'fusionModule': 'c_gate',
                 # Micro-fusion in GATE_F: text | audio | vision | dynamic_missing; CLI --fusion_center_modality overrides.
                 'fusion_center_modality': 'text',
+                # Soft missing-aware dynamic anchor (only fusion_center_modality=dynamic_missing).
+                'dynamic_anchor_prior_text': 0.30,
+                'dynamic_anchor_prior_audio': 0.24,
+                'dynamic_anchor_prior_vision': 0.22,
+                'dynamic_anchor_beta': 2.0,
+                'dynamic_anchor_min_valid': 1e-3,
                 'recloss_type': 'combine',
                 'without_generator': False,
 

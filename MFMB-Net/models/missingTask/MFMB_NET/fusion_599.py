@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from models.missingTask.MFMB_NET.modules.transformer import TransformerEncoder
 from einops.layers.torch import Rearrange
 
-# Modality index order for micro-fusion dynamic center (tie-break: text > audio > vision == argmax on this axis).
+# Column order (text, audio, vision) for valid ratios / soft weights.
 _MOD_TEXT, _MOD_AUDIO, _MOD_VISION = 0, 1, 2
 
 
@@ -50,43 +50,34 @@ def _compute_modality_valid_ratios_from_missing(
     return torch.stack((r_t, r_a, r_v), dim=1)
 
 
-def _select_dynamic_center_from_missing(valid_ratios, min_valid_ratio=1e-3):
-    """Rule router: among modalities with valid_ratio >= min_valid_ratio, pick
-    the highest valid_ratio; ties break as text > audio > vision by argmax
-    order (text column index 0).
+def _soft_weights_from_missing(
+    valid_ratios,
+    alpha_text,
+    alpha_audio,
+    alpha_vision,
+    beta,
+    min_valid_ratio=1e-3,
+):
+    """Missing-only soft weights over micro-fusion centers (text / audio / vision).
 
-    Args:
-        valid_ratios: [B, 3] (text, audio, vision).
-        min_valid_ratio: treat modality as unavailable below this threshold.
+    Per sample, with r = valid_ratios (text, audio, vision):
+        s_m = alpha_m + beta * r_m
+    Modality with r_m < min_valid_ratio is down-weighted (missing-only availability).
+    Then w = softmax(s) along modality dim; sum_m w_m = 1.
 
-    Returns:
-        center_idx: LongTensor [B] with values 0=text, 1=audio, 2=vision.
+    Priors encode mild text-guided inductive bias (original MFMB-Net default) without
+    forcing text to always win when observations disagree.
     """
-    eligible = valid_ratios >= min_valid_ratio
-    scores = valid_ratios.clone()
-    scores = scores.masked_fill(~eligible, float('-inf'))
-    center_idx = scores.argmax(dim=1)
-    return center_idx
-
-
-def _micro_fusion_pairs_from_centers(Ut, Ua, Uv, center_idx):
-    """Build [2, B, D] stacks: row0 = center modality, matching fixed-center semantics.
-
-    Ut/Ua/Uv are [B, D] with fixed naming: text, audio, vision common projections.
-    center_idx: [B] in {0,1,2} for text/audio/vision center.
-    """
-    # U_stacked[m, b, :] = modality m for sample b
-    U_stacked = torch.stack((Ut, Ua, Uv), dim=0)
-    b = torch.arange(Ut.size(0), device=Ut.device, dtype=torch.long)
-    cent = U_stacked[center_idx, b]
-    # Second modality in pair1 / pair2 for each fixed center mode (see GATE_F):
-    p1_other = torch.tensor((2, 0, 0), device=Ut.device, dtype=torch.long)[center_idx]
-    p2_other = torch.tensor((1, 2, 1), device=Ut.device, dtype=torch.long)[center_idx]
-    other1 = U_stacked[p1_other, b]
-    other2 = U_stacked[p2_other, b]
-    pair1 = torch.stack((cent, other1), dim=0)
-    pair2 = torch.stack((cent, other2), dim=0)
-    return pair1, pair2
+    r = valid_ratios.to(dtype=torch.float32)
+    s_t = alpha_text + beta * r[:, _MOD_TEXT]
+    s_a = alpha_audio + beta * r[:, _MOD_AUDIO]
+    s_v = alpha_vision + beta * r[:, _MOD_VISION]
+    scores = torch.stack((s_t, s_a, s_v), dim=1)
+    scores = scores.masked_fill(r < min_valid_ratio, -1e4)
+    all_bad = (r < min_valid_ratio).all(dim=1, keepdim=True)
+    scores = scores.masked_fill(all_bad, 0.0)
+    w = F.softmax(scores, dim=1)
+    return w
 class MLP_block(nn.Module):
     def __init__(self,input_size,hidden_size,dropout=0.5):
         super().__init__()
@@ -254,7 +245,11 @@ class GATE_F(nn.Module):
         #stack
         self.common_size=64
         self.dim=self.common_size
-        self.batchnorm=nn.BatchNorm1d(2,affine=False)
+        # Micro-fusion BN: one per stack semantics (text- / audio- / vision-centered).
+        # Legacy checkpoints only store ``batchnorm`` (text-centered); audio/vision are new keys.
+        self.batchnorm = nn.BatchNorm1d(2, affine=False)
+        self.micro_bn_audio = nn.BatchNorm1d(2, affine=False)
+        self.micro_bn_vision = nn.BatchNorm1d(2, affine=False)
         self.MLP_Communicator1=MLP_Communicator(self.dim,2,hidden_size=64,depth=1)
         self.MLP_Communicator2 = MLP_Communicator(self.dim, 2, hidden_size=64, depth=1)
         self.args=args
@@ -266,9 +261,36 @@ class GATE_F(nn.Module):
         # Ut/Uv/Ua in common space; used for logging (micro-fusion pair semantics).
         if self.fusion_center_modality == 'dynamic_missing':
             self._micro_fusion_pair_labels = (
-                '(per-sample: center from missing masks)',
-                '(pair1/pair2 follow text/audio/vision center rules)',
+                '(soft blend of text/audio/vision micro-fusion centers)',
+                '(weights from valid_ratio + prior + softmax; missing-only)',
             )
+            self.dynamic_anchor_prior_text = float(
+                getattr(args, 'dynamic_anchor_prior_text', 0.30)
+            )
+            self.dynamic_anchor_prior_audio = float(
+                getattr(args, 'dynamic_anchor_prior_audio', 0.24)
+            )
+            self.dynamic_anchor_prior_vision = float(
+                getattr(args, 'dynamic_anchor_prior_vision', 0.22)
+            )
+            self.dynamic_anchor_beta = float(getattr(args, 'dynamic_anchor_beta', 2.0))
+            self.dynamic_anchor_min_valid = float(
+                getattr(args, 'dynamic_anchor_min_valid', 1e-3)
+            )
+            pt, pa, pv = (
+                self.dynamic_anchor_prior_text,
+                self.dynamic_anchor_prior_audio,
+                self.dynamic_anchor_prior_vision,
+            )
+            if not (pt > pa and pa >= pv):
+                log = logging.getLogger(__name__)
+                log.warning(
+                    'GATE_F dynamic anchor priors: expected prior_text > prior_audio >= prior_vision; '
+                    'got text=%.4f audio=%.4f vision=%.4f',
+                    pt,
+                    pa,
+                    pv,
+                )
         else:
             self._micro_fusion_pair_labels = {
                 'text': ('(text,vision)', '(text,audio)'),
@@ -306,8 +328,25 @@ class GATE_F(nn.Module):
             self._micro_fusion_pair_labels[0],
             self._micro_fusion_pair_labels[1],
         )
+        if self.fusion_center_modality == 'dynamic_missing':
+            log.info(
+                'GATE_F dynamic_missing (soft anchor): prior_text=%.4f prior_audio=%.4f prior_vision=%.4f '
+                'beta=%.4f min_valid=%.2e',
+                self.dynamic_anchor_prior_text,
+                self.dynamic_anchor_prior_audio,
+                self.dynamic_anchor_prior_vision,
+                self.dynamic_anchor_beta,
+                self.dynamic_anchor_min_valid,
+            )
 
-    def forward(self, text_x, audio_x, vision_x, missing_masks_for_dynamic_center=None):
+    def forward(
+        self,
+        text_x,
+        audio_x,
+        vision_x,
+        missing_masks_for_dynamic_center=None,
+        return_anchor_aux=False,
+    ):
         text_x, text_mask = text_x
 
         #mosi mosei
@@ -335,9 +374,15 @@ class GATE_F(nn.Module):
         vision_rep = self.vision_encoder(vision_x, vision_mask)
         vision_rep_common = self.v_stack_linear(vision_rep)
 
-        # Ut, Uv, Ua in common_size (paper notation); micro-fusion pairs share one BN then flatten.
+        # Ut, Uv, Ua in common_size (paper notation); micro-fusion pairs: BN then flatten.
         # Original MFMB-Net: stack(Ut,Uv), stack(Ut,Ua). Coarse-to-fine here is BatchNorm1d(2) (MLP_Communicator* unused in forward).
         Ut, Uv, Ua = text_rep_common, vision_rep_common, audio_rep_common
+
+        def _micro_fusion_stack_to_vec(stack_2mod, bn_module):
+            x = bn_module(stack_2mod.permute(1, 0, 2))
+            # Use actual batch dim (valid/test may use last batch < args.batch_size when drop_last=False).
+            return x.reshape(x.size(0), -1)
+
         if self.fusion_center_modality == 'dynamic_missing':
             if missing_masks_for_dynamic_center is None:
                 raise ValueError(
@@ -355,25 +400,47 @@ class GATE_F(nn.Module):
             valid_ratios = _compute_modality_valid_ratios_from_missing(
                 mm_t, mm_a, mm_v, text_mask, audio_mask, vision_mask
             )
-            center_idx = _select_dynamic_center_from_missing(valid_ratios)
-            pair1, pair2 = _micro_fusion_pairs_from_centers(Ut, Ua, Uv, center_idx)
+            weights = _soft_weights_from_missing(
+                valid_ratios,
+                self.dynamic_anchor_prior_text,
+                self.dynamic_anchor_prior_audio,
+                self.dynamic_anchor_prior_vision,
+                self.dynamic_anchor_beta,
+                min_valid_ratio=self.dynamic_anchor_min_valid,
+            )
+            # Three fixed-center micro branches; each center uses its own BN (fair vs fixed modes).
+            p1_t = torch.stack((Ut, Uv), dim=0)
+            p2_t = torch.stack((Ut, Ua), dim=0)
+            p1_a = torch.stack((Ua, Ut), dim=0)
+            p2_a = torch.stack((Ua, Uv), dim=0)
+            p1_v = torch.stack((Uv, Ut), dim=0)
+            p2_v = torch.stack((Uv, Ua), dim=0)
+            sa_t = _micro_fusion_stack_to_vec(p1_t, self.batchnorm)
+            sb_t = _micro_fusion_stack_to_vec(p2_t, self.batchnorm)
+            sa_a = _micro_fusion_stack_to_vec(p1_a, self.micro_bn_audio)
+            sb_a = _micro_fusion_stack_to_vec(p2_a, self.micro_bn_audio)
+            sa_v = _micro_fusion_stack_to_vec(p1_v, self.micro_bn_vision)
+            sb_v = _micro_fusion_stack_to_vec(p2_v, self.micro_bn_vision)
+            wt = weights[:, _MOD_TEXT : _MOD_TEXT + 1]
+            wa = weights[:, _MOD_AUDIO : _MOD_AUDIO + 1]
+            wv = weights[:, _MOD_VISION : _MOD_VISION + 1]
+            stack_local_a = wt * sa_t + wa * sa_a + wv * sa_v
+            stack_local_b = wt * sb_t + wa * sb_a + wv * sb_v
         elif self.fusion_center_modality == 'text':
             pair1 = torch.stack((Ut, Uv), dim=0)
             pair2 = torch.stack((Ut, Ua), dim=0)
+            stack_local_a = _micro_fusion_stack_to_vec(pair1, self.batchnorm)
+            stack_local_b = _micro_fusion_stack_to_vec(pair2, self.batchnorm)
         elif self.fusion_center_modality == 'audio':
             pair1 = torch.stack((Ua, Ut), dim=0)
             pair2 = torch.stack((Ua, Uv), dim=0)
+            stack_local_a = _micro_fusion_stack_to_vec(pair1, self.micro_bn_audio)
+            stack_local_b = _micro_fusion_stack_to_vec(pair2, self.micro_bn_audio)
         else:
             pair1 = torch.stack((Uv, Ut), dim=0)
             pair2 = torch.stack((Uv, Ua), dim=0)
-
-        def _micro_fusion_stack_to_vec(stack_2mod):
-            x = self.batchnorm(stack_2mod.permute(1, 0, 2))
-            # Use actual batch dim (valid/test may use last batch < args.batch_size when drop_last=False).
-            return x.reshape(x.size(0), -1)
-
-        stack_local_a = _micro_fusion_stack_to_vec(pair1)
-        stack_local_b = _micro_fusion_stack_to_vec(pair2)
+            stack_local_a = _micro_fusion_stack_to_vec(pair1, self.micro_bn_vision)
+            stack_local_b = _micro_fusion_stack_to_vec(pair2, self.micro_bn_vision)
 
         if not self._micro_fusion_debug_printed:
             log = logging.getLogger(__name__)
@@ -387,19 +454,29 @@ class GATE_F(nn.Module):
 
         if self.fusion_center_modality == 'dynamic_missing' and not self._dynamic_missing_first_batch_logged:
             log = logging.getLogger(__name__)
-            n_txt = int((center_idx == _MOD_TEXT).sum().item())
-            n_aud = int((center_idx == _MOD_AUDIO).sum().item())
-            n_vis = int((center_idx == _MOD_VISION).sum().item())
-            log.info('[GATE_F] dynamic_missing: enabled; per-sample micro-fusion center from valid ratios only.')
+            dom = weights.argmax(dim=1)
+            n_txt = int((dom == _MOD_TEXT).sum().item())
+            n_aud = int((dom == _MOD_AUDIO).sum().item())
+            n_vis = int((dom == _MOD_VISION).sum().item())
             log.info(
-                '[GATE_F] dynamic_missing (first batch): batch center counts: text=%d, audio=%d, vision=%d (batch_size=%d)',
-                n_txt, n_aud, n_vis, center_idx.numel(),
-            )
-            log.info(
-                '[GATE_F] dynamic_missing (first batch): mean valid_ratio text=%.4f audio=%.4f vision=%.4f',
+                '[GATE_F] dynamic_missing (soft, first batch): mean valid_ratio text=%.4f audio=%.4f vision=%.4f',
                 float(valid_ratios[:, 0].mean().item()),
                 float(valid_ratios[:, 1].mean().item()),
                 float(valid_ratios[:, 2].mean().item()),
+            )
+            log.info(
+                '[GATE_F] dynamic_missing (soft, first batch): mean soft weights text=%.4f audio=%.4f vision=%.4f',
+                float(weights[:, 0].mean().item()),
+                float(weights[:, 1].mean().item()),
+                float(weights[:, 2].mean().item()),
+            )
+            log.info(
+                '[GATE_F] dynamic_missing (soft, first batch): dominant-center (argmax w) counts: '
+                'text=%d, audio=%d, vision=%d (batch_size=%d)',
+                n_txt,
+                n_aud,
+                n_vis,
+                dom.numel(),
             )
             self._dynamic_missing_first_batch_logged = True
 
@@ -410,9 +487,36 @@ class GATE_F(nn.Module):
             (text_rep, audio_rep, vision_rep, stack_local_a, stack_local_b, audio_visual_fusion), dim=1
         )
 
-
-        
-        return self.classifier2(utterance_rep)
+        out = self.classifier2(utterance_rep)
+        if return_anchor_aux:
+            if self.fusion_center_modality == 'dynamic_missing':
+                w_out = weights
+                vr_out = valid_ratios
+            else:
+                if missing_masks_for_dynamic_center is not None:
+                    mm_t, mm_a, mm_v = missing_masks_for_dynamic_center
+                    vr_out = _compute_modality_valid_ratios_from_missing(
+                        mm_t, mm_a, mm_v, text_mask, audio_mask, vision_mask
+                    )
+                else:
+                    vr_out = torch.full(
+                        (Ut.size(0), 3),
+                        float('nan'),
+                        device=Ut.device,
+                        dtype=torch.float32,
+                    )
+                bsz = Ut.size(0)
+                dev, dt = Ut.device, torch.float32
+                w_out = torch.zeros(bsz, 3, device=dev, dtype=dt)
+                if self.fusion_center_modality == 'text':
+                    w_out[:, _MOD_TEXT] = 1.0
+                elif self.fusion_center_modality == 'audio':
+                    w_out[:, _MOD_AUDIO] = 1.0
+                else:
+                    w_out[:, _MOD_VISION] = 1.0
+            aux = {'soft_weights': w_out, 'valid_ratios': vr_out}
+            return out, aux
+        return out
 
        
       
@@ -430,6 +534,19 @@ class Fusion(nn.Module):
 
         self.Model = select_model(args)
 
-    def forward(self, text_x, audio_x, vision_x, missing_masks_for_dynamic_center=None):
+    def forward(
+        self,
+        text_x,
+        audio_x,
+        vision_x,
+        missing_masks_for_dynamic_center=None,
+        return_anchor_aux=False,
+    ):
 
-        return self.Model(text_x, audio_x, vision_x, missing_masks_for_dynamic_center)
+        return self.Model(
+            text_x,
+            audio_x,
+            vision_x,
+            missing_masks_for_dynamic_center,
+            return_anchor_aux=return_anchor_aux,
+        )
