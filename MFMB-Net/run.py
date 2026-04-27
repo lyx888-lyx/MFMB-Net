@@ -20,8 +20,12 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
 
 def _fusion_center_slug(args):
-    """Isolate logs / results / checkpoints between micro-fusion settings."""
-    return getattr(args, 'fusion_center_modality', 'text')
+    """Isolate logs / results / checkpoints between micro-fusion and local-encoder settings."""
+    fc = getattr(args, 'fusion_center_modality', 'text')
+    lte = getattr(args, 'local_temporal_encoder_type', 'legacy')
+    if lte == 'legacy':
+        return fc
+    return '%s_lte_%s' % (fc, lte)
 
 
 def _apply_missing_rates(args):
@@ -289,6 +293,13 @@ def parse_args():
         type=float,
         default=1e-3,
         help='Soft dynamic anchor: modalities with valid_ratio below this get near-zero weight.',
+    )
+    parser.add_argument(
+        '--local_temporal_encoder_type',
+        type=str,
+        default='legacy',
+        choices=['legacy', 'mstcn'],
+        help="GATE_F local/micro temporal encoder: 'legacy' (Bi-GRU+C_GATE) or 'mstcn' (light multi-scale Conv1d). Default=legacy.",
     )
     parser.add_argument("--keep_ckpt", action="store_true", help="whether to keep checkpoint files after test")
     parser.add_argument(

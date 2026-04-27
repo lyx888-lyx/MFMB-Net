@@ -221,13 +221,67 @@ class C_GATE(nn.Module):
 
         return utterance_rep
 
+
+class MSTemporalEncoder(nn.Module):
+    """Light multi-scale temporal Conv1d encoder for the micro/local branch.
+
+    Same interface and output shape as ``C_GATE``: forward(utterance, utterance_mask) -> [B, hidden_dim].
+    Three parallel temporal kernels (3/5/7), channel concat, 1x1 mix, masked max-pool over time.
+
+    Note: ``C_GATE`` uses Bi-GRU + gated Conv1d + max-pool (no BiLSTM in this repo).
+    """
+
+    def __init__(self, embedding_dim, hidden_dim, drop):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        mid = max(4, (hidden_dim + 2) // 3)
+        self._branch_ch = mid
+        self.conv3 = nn.Conv1d(embedding_dim, mid, kernel_size=3, padding=1, bias=True)
+        self.conv5 = nn.Conv1d(embedding_dim, mid, kernel_size=5, padding=2, bias=True)
+        self.conv7 = nn.Conv1d(embedding_dim, mid, kernel_size=7, padding=3, bias=True)
+        self.mix = nn.Conv1d(3 * mid, hidden_dim, kernel_size=1, bias=True)
+        self.act = nn.GELU()
+        self.dropout_in = nn.Dropout(drop)
+
+    def forward(self, utterance, utterance_mask):
+        # utterance [B, T, D], mask [B, T] (1 = valid timestep for pooling, 0 = pad)
+        b, t, d = utterance.shape
+        m = utterance_mask[:, :t].float().clamp(0.0, 1.0)
+        x = utterance * m.unsqueeze(-1)
+        xc = x.transpose(1, 2).contiguous()
+        h = torch.cat((self.conv3(xc), self.conv5(xc), self.conv7(xc)), dim=1)
+        h = self.mix(h)
+        h = self.act(h)
+        h = h.transpose(1, 2)
+        neg = torch.finfo(h.dtype).min
+        h = h.masked_fill(m.unsqueeze(-1) < 0.5, neg)
+        utterance_rep = h.max(dim=1).values
+        utterance_rep = torch.nan_to_num(utterance_rep, nan=0.0, posinf=0.0, neginf=0.0)
+        utterance_rep = self.dropout_in(utterance_rep)
+        return utterance_rep
+
+
+def _make_local_temporal_encoder(args, fusion_in, fusion_hid, lte_type):
+    if lte_type == 'legacy':
+        return C_GATE(fusion_in, fusion_hid, args.fusion_gru_layers, args.fusion_drop)
+    if lte_type == 'mstcn':
+        return MSTemporalEncoder(fusion_in, fusion_hid, args.fusion_drop)
+    raise ValueError("local_temporal_encoder_type must be 'legacy' or 'mstcn'")
+
+
 class GATE_F(nn.Module):
     def __init__(self, args):
         super(GATE_F, self).__init__()
-        
-        self.text_encoder = C_GATE(args.fusion_t_in, args.fusion_t_hid, args.fusion_gru_layers, args.fusion_drop)
-        self.audio_encoder = C_GATE(args.fusion_a_in, args.fusion_a_hid, args.fusion_gru_layers, args.fusion_drop)
-        self.vision_encoder = C_GATE(args.fusion_v_in, args.fusion_v_hid, args.fusion_gru_layers, args.fusion_drop)
+
+        lte = getattr(args, 'local_temporal_encoder_type', 'legacy')
+        if lte not in ('legacy', 'mstcn'):
+            raise ValueError("local_temporal_encoder_type must be 'legacy' or 'mstcn'")
+        self.local_temporal_encoder_type = lte
+
+        self.text_encoder = _make_local_temporal_encoder(args, args.fusion_t_in, args.fusion_t_hid, lte)
+        self.audio_encoder = _make_local_temporal_encoder(args, args.fusion_a_in, args.fusion_a_hid, lte)
+        self.vision_encoder = _make_local_temporal_encoder(args, args.fusion_v_in, args.fusion_v_hid, lte)
 
         self.audio_visual_model = BottleAttentionNet()
 
@@ -253,6 +307,8 @@ class GATE_F(nn.Module):
         self.MLP_Communicator1=MLP_Communicator(self.dim,2,hidden_size=64,depth=1)
         self.MLP_Communicator2 = MLP_Communicator(self.dim, 2, hidden_size=64, depth=1)
         self.args=args
+        # MOSI vs MOSEI use different audio seq projection widths (375 vs 500); forward must branch.
+        self._fusion_seq_dataset = str.lower(getattr(args, 'datasetName', 'mosi'))
         self.fusion_center_modality = getattr(args, 'fusion_center_modality', 'text')
         if self.fusion_center_modality not in ('text', 'audio', 'vision', 'dynamic_missing'):
             raise ValueError(
@@ -299,6 +355,7 @@ class GATE_F(nn.Module):
             }[self.fusion_center_modality]
         self._micro_fusion_debug_printed = False
         self._dynamic_missing_first_batch_logged = False
+        self._lte_shape_logged = False
         #stack
         self.t_stack_linear=nn.Linear(36,self.common_size)
         self.v_stack_linear = nn.Linear(48,self.common_size)
@@ -322,6 +379,12 @@ class GATE_F(nn.Module):
         self.classifier2.add_module('linear_trans_final', nn.Linear(args.cls_hidden_dim, 1))
 
         log = logging.getLogger(__name__)
+        log.info(
+            'GATE_F seq_linear branch: dataset=%s -> %s audio/vision projection',
+            self._fusion_seq_dataset,
+            'mosei (seq_*_mosei)' if self._fusion_seq_dataset == 'mosei' else 'mosi/sims default (seq_*_mosi)',
+        )
+        log.info('GATE_F local_temporal_encoder_type=%s', self.local_temporal_encoder_type)
         log.info(
             'GATE_F fusion_center_modality=%s micro_fusion_pairs=%s, %s (dim0 of stack = center modality)',
             self.fusion_center_modality,
@@ -354,12 +417,18 @@ class GATE_F(nn.Module):
         #text_x_fusion=text_x_fusion.permute(2,0,1)#seq_len,batchsize,dim 50,24,90
   
         audio_x, audio_mask = audio_x
-        audio_x_fusion=self.seq_a_mosi(audio_x.permute(0,2,1))#24,90,375--24,90,50-
-        audio_x_fusion=audio_x_fusion.permute(2,0,1)#seq_len,batchsize,dim 50,24,90
+        if self._fusion_seq_dataset == 'mosei':
+            audio_x_fusion = self.seq_a_mosei(audio_x.permute(0, 2, 1))
+        else:
+            audio_x_fusion = self.seq_a_mosi(audio_x.permute(0, 2, 1))
+        audio_x_fusion = audio_x_fusion.permute(2, 0, 1)  # seq_len, batch, dim 50,24,90
 
         vision_x, vision_mask = vision_x
-        vision_x_fusion=self.seq_v_mosi(vision_x.permute(0,2,1))
-        vision_x_fusion=vision_x_fusion.permute(2,0,1)#50,24,90
+        if self._fusion_seq_dataset == 'mosei':
+            vision_x_fusion = self.seq_v_mosei(vision_x.permute(0, 2, 1))
+        else:
+            vision_x_fusion = self.seq_v_mosi(vision_x.permute(0, 2, 1))
+        vision_x_fusion = vision_x_fusion.permute(2, 0, 1)
 
         audio_visual_fusion=self.audio_visual_model(audio_x_fusion,vision_x_fusion,text_x_fusion)#4，24，90
         audio_visual_fusion=audio_visual_fusion[-1]#24,90
@@ -373,6 +442,20 @@ class GATE_F(nn.Module):
      
         vision_rep = self.vision_encoder(vision_x, vision_mask)
         vision_rep_common = self.v_stack_linear(vision_rep)
+
+        if not self._lte_shape_logged:
+            _log = logging.getLogger(__name__)
+            _log.info(
+                '[GATE_F] first forward local temporal: type=%s | text utterance %s -> rep %s | audio %s -> %s | vision %s -> %s',
+                self.local_temporal_encoder_type,
+                tuple(text_x.shape),
+                tuple(text_rep.shape),
+                tuple(audio_x.shape),
+                tuple(audio_rep.shape),
+                tuple(vision_x.shape),
+                tuple(vision_rep.shape),
+            )
+            self._lte_shape_logged = True
 
         # Ut, Uv, Ua in common_size (paper notation); micro-fusion pairs: BN then flatten.
         # Original MFMB-Net: stack(Ut,Uv), stack(Ut,Ua). Coarse-to-fine here is BatchNorm1d(2) (MLP_Communicator* unused in forward).

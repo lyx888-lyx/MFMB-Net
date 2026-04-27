@@ -66,66 +66,71 @@ def _log_dataset_runtime_inspect(args, datasets, data_loaders=None, dl_settings=
     logger.info("[DATA] datasetName=%s train_mode=%s", args.datasetName, args.train_mode)
     aligned = "aligned" if args.need_data_aligned else "unaligned"
     logger.info("[DATA] need_data_aligned=%s -> using %s pipeline", args.need_data_aligned, aligned)
-    tr = datasets['train']
-    va = datasets['valid']
-    te = datasets['test']
-    logger.info("[DATA] split sizes: train=%d valid=%d test=%d", len(tr), len(va), len(te))
+    train_ds = datasets['train']
+    valid_ds = datasets['valid']
+    test_ds = datasets['test']
+    logger.info("[DATA] split sizes: train=%d valid=%d test=%d", len(train_ds), len(valid_ds), len(test_ds))
     logger.info(
         "[DATA] train arrays: text.shape=%s audio.shape=%s vision.shape=%s",
-        tr.text.shape, tr.audio.shape, tr.vision.shape,
+        train_ds.text.shape, train_ds.audio.shape, train_ds.vision.shape,
     )
-    td, ad, vd = tr.get_feature_dim()
+    td, ad, vd = train_ds.get_feature_dim()
     logger.info("[DATA] per-modality feature dim: text=%d audio=%d vision=%d", td, ad, vd)
-    logger.info("[DATA] labels['M'].shape (train)=%s", tr.labels['M'].shape)
+    logger.info("[DATA] labels['M'].shape (train)=%s", train_ds.labels['M'].shape)
 
     if getattr(args, 'data_missing', False):
         mr = getattr(args, 'missing_rate', (0.0, 0.0, 0.0))
         mg = float(getattr(args, 'missing', mr[0]))
-        tr = float(getattr(args, 'text_missing_rate', mr[0]))
-        ar = float(getattr(args, 'audio_missing_rate', mr[1]))
-        vr = float(getattr(args, 'vision_missing_rate', mr[2]))
+        text_rate = float(getattr(args, 'text_missing_rate', mr[0]))
+        audio_rate = float(getattr(args, 'audio_missing_rate', mr[1]))
+        vision_rate = float(getattr(args, 'vision_missing_rate', mr[2]))
         logger.info("[DATA] data_missing=True")
         logger.info("[DATA] missing(global)=%s (CLI --missing default for unset modalities)", mg)
-        logger.info("[DATA] text_missing_rate=%s audio_missing_rate=%s vision_missing_rate=%s", tr, ar, vr)
+        logger.info(
+            "[DATA] text_missing_rate=%s audio_missing_rate=%s vision_missing_rate=%s",
+            text_rate,
+            audio_rate,
+            vision_rate,
+        )
         logger.info("[DATA] missing_rate tuple (T,A,V) used in generate_m=%s", mr)
         if mr[0] == 0.0 and mr[1] == 0.0 and mr[2] == 0.0:
-            t_eq = np.allclose(tr.text_m, tr.text)
-            a_eq = np.allclose(tr.audio_m, tr.audio)
-            v_eq = np.allclose(tr.vision_m, tr.vision)
+            t_eq = np.allclose(train_ds.text_m, train_ds.text)
+            a_eq = np.allclose(train_ds.audio_m, train_ds.audio)
+            v_eq = np.allclose(train_ds.vision_m, train_ds.vision)
             logger.info(
                 "[DATA] missing=0.0 equiv check (train, float): text_m==text %s, audio_m==audio %s, vision_m==vision %s",
                 t_eq, a_eq, v_eq,
             )
             if not t_eq:
-                logger.info("[DATA] |text_m - text| max=%.6e", np.abs(tr.text_m - tr.text).max())
+                logger.info("[DATA] |text_m - text| max=%.6e", np.abs(train_ds.text_m - train_ds.text).max())
             if not a_eq:
-                logger.info("[DATA] |audio_m - audio| max=%.6e", np.abs(tr.audio_m - tr.audio).max())
+                logger.info("[DATA] |audio_m - audio| max=%.6e", np.abs(train_ds.audio_m - train_ds.audio).max())
             if not v_eq:
-                logger.info("[DATA] |vision_m - vision| max=%.6e", np.abs(tr.vision_m - tr.vision).max())
-            tmm = tr.text_missing_mask
+                logger.info("[DATA] |vision_m - vision| max=%.6e", np.abs(train_ds.vision_m - train_ds.vision).max())
+            tmm = train_ds.text_missing_mask
             logger.info(
                 "[DATA] text_missing_mask: min=%s max=%s (expect all 1 when no drops)",
                 float(tmm.min()), float(tmm.max()),
             )
             _log_av_m_vs_orig_breakdown(
                 'train',
-                tr.audio,
-                tr.audio_m,
-                tr.audio_mask,
-                tr.vision,
-                tr.vision_m,
-                tr.vision_mask,
+                train_ds.audio,
+                train_ds.audio_m,
+                train_ds.audio_mask,
+                train_ds.vision,
+                train_ds.vision_m,
+                train_ds.vision_mask,
             )
             aud_valid_changed = int(
                 np.sum(
-                    (np.abs(tr.audio_m - tr.audio) > 1e-5)
-                    & (tr.audio_mask[:, :, np.newaxis] > 0)
+                    (np.abs(train_ds.audio_m - train_ds.audio) > 1e-5)
+                    & (train_ds.audio_mask[:, :, np.newaxis] > 0)
                 )
             )
             vis_valid_changed = int(
                 np.sum(
-                    (np.abs(tr.vision_m - tr.vision) > 1e-5)
-                    & (tr.vision_mask[:, :, np.newaxis] > 0)
+                    (np.abs(train_ds.vision_m - train_ds.vision) > 1e-5)
+                    & (train_ds.vision_mask[:, :, np.newaxis] > 0)
                 )
             )
             if aud_valid_changed == 0 and vis_valid_changed == 0:

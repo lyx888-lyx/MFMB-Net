@@ -1,0 +1,943 @@
+{
+  "project_root": "/code/MFMB-Net/MFMB-Net",
+  "strict_mosei_source": {
+    "filename_glob": "predictions_mosei_fc_{center}_seed{seed}_test*.csv",
+    "meta": "datasetName=mosei, MOSEI in dataPath_runtime, n_samples != 686"
+  },
+  "naming_note": "MOSI training exports: predictions_mosi_fc_* (datasetName=mosi). MOSEI training exports: predictions_mosei_fc_* (datasetName=mosei). mosei-regression-*.csv is rebuilt only from the latter, validated by meta.",
+  "loss_note": "Loss = batch-mean L1 in training; not reproduced here; (N/A, N/A) for new rows.",
+  "mosei_prediction_files_accepted": 0,
+  "rejected_mosi_for_mosei_normals": [
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+    "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+  ],
+  "combinations": [
+    {
+      "missing": "0.0",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    }
+  ],
+  "normals_wrote": [],
+  "normals_unchanged": [],
+  "incomplete": [
+    {
+      "missing": "0.0",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.0",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.0.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.0_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.1",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.1.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.1_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.2",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.2.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.2_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.3",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.3.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.3_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.4",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.4.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.4_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.5",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.5.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.5_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "text",
+      "lte": "legacy",
+      "fc_slug": "text",
+      "normals_relpath": "results/results/normals/text/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_legacy/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "text",
+      "lte": "mstcn",
+      "fc_slug": "text_lte_mstcn",
+      "normals_relpath": "results/results/normals/text_lte_mstcn/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_text_mstcn/predictions_mosi_fc_text_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "dynamic_missing",
+      "lte": "legacy",
+      "fc_slug": "dynamic_missing",
+      "normals_relpath": "results/results/normals/dynamic_missing/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_legacy/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    },
+    {
+      "missing": "0.6",
+      "center": "dynamic_missing",
+      "lte": "mstcn",
+      "fc_slug": "dynamic_missing_lte_mstcn",
+      "normals_relpath": "results/results/normals/dynamic_missing_lte_mstcn/mosei-regression-0.6.csv",
+      "validation_notes": [
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed1111_test_full_drop_last_false.csv",
+        "MOSI prediction ignored for mosei-regression (use MOSEI export + meta): results/predictions/miss_0.6_dynamic_missing_mstcn/predictions_mosi_fc_dynamic_missing_seed11111_test_full_drop_last_false.csv"
+      ],
+      "prediction_csv": [],
+      "meta": {},
+      "status": "cannot_build_mosei_normals: need 3 valid MOSEI seeds, found [] — see validation_notes (MOSI not used)."
+    }
+  ],
+  "dry_run": true
+}

@@ -31,6 +31,9 @@ class ConfigRegression():
                             **commonArgs,
                             **HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name],
                             ))
+        # Enforce dataset key used for dataArgs / datasetParas; never let a future hyper
+        # key shadow CLI (vars(args) would lose to **datasetParas if datasetName were added there).
+        self.args.datasetName = dataset_name
         # Hyper-parameter dict overwrites parse_args; restore selected CLI ablation flags.
         self.args.fusion_center_modality = getattr(args, 'fusion_center_modality', 'text')
         self.args.debug_data_inspect = getattr(args, 'debug_data_inspect', False)
@@ -59,6 +62,7 @@ class ConfigRegression():
         self.args.dynamic_anchor_prior_vision = float(getattr(args, 'dynamic_anchor_prior_vision', 0.22))
         self.args.dynamic_anchor_beta = float(getattr(args, 'dynamic_anchor_beta', 2.0))
         self.args.dynamic_anchor_min_valid = float(getattr(args, 'dynamic_anchor_min_valid', 1e-3))
+        self.args.local_temporal_encoder_type = getattr(args, 'local_temporal_encoder_type', 'legacy')
     
     def __datasetCommonParams(self):
         root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
@@ -195,6 +199,8 @@ class ConfigRegression():
                 'dynamic_anchor_prior_vision': 0.22,
                 'dynamic_anchor_beta': 2.0,
                 'dynamic_anchor_min_valid': 1e-3,
+                # GATE_F per-modality local encoder: legacy (C_GATE) | mstcn (multi-scale temporal conv).
+                'local_temporal_encoder_type': 'legacy',
                 'recloss_type': 'combine',
                 'without_generator': False,
 
