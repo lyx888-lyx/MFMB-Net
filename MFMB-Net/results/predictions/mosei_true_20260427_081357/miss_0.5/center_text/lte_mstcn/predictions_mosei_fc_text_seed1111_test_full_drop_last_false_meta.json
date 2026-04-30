@@ -1,0 +1,23 @@
+{
+  "csv_path": "/code/MFMB-Net/MFMB-Net/results/predictions/mosei_true_20260427_081357/miss_0.5/center_text/lte_mstcn/predictions_mosei_fc_text_seed1111_test_full_drop_last_false.csv",
+  "n_samples": 4659,
+  "datasetName": "mosei",
+  "seed": 1111,
+  "fusion_center_modality": "text",
+  "missing": 0.5,
+  "text_missing_rate": 0.5,
+  "audio_missing_rate": 0.5,
+  "vision_missing_rate": 0.5,
+  "dataPath_runtime": "/sharefile/lyx_model/MMSA/Datasets/MOSEI/unaligned_50.pkl",
+  "dataloader_note": "Test DataLoader: shuffle=False, drop_last=False \u2014 full test split in metrics/export.",
+  "export_tag": "full_drop_last_false",
+  "anchor_columns": [
+    "w_text",
+    "w_audio",
+    "w_vision",
+    "dominant_center",
+    "valid_ratio_text",
+    "valid_ratio_audio",
+    "valid_ratio_vision"
+  ]
+}

@@ -349,10 +349,13 @@ class ConfigRegression():
                     # gradient clip value (default: 0.8)
                     # when grad_clip == -1.0, means not use that
                     'grad_clip': 0.8,
+                    # train DataLoader uses drop_last=True: batch 40 leaves the same 6 tail samples
+                    # skipped as batch 24 (32 would skip more), and improves throughput vs 24.
                     # the batch_size of each epoch is updata_epochs * batch_size
-                    'batch_size': 24,
+                    'batch_size': 40,
                     'learning_rate_bert': 1e-05,
-                    'learning_rate_other': 0.002,
+                    # Adam: sqrt scale vs former batch 24 so effective step size stays comparable
+                    'learning_rate_other': 0.0026,
                     # when to decay learning rate (default: 20)
                     'patience': 5,
                     'weight_decay_bert': 0.0001,
