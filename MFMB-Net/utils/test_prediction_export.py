@@ -64,6 +64,11 @@ def save_anchor_center_summary(args, weights_np, valid_ratios_np, mode):
         'mean_valid_ratio_audio': float(np.nanmean(valid_ratios_np[:, 1])),
         'mean_valid_ratio_vision': float(np.nanmean(valid_ratios_np[:, 2])),
     }
+    if fc == 'dynamic_missing':
+        summary['anchor_router_type'] = getattr(args, 'anchor_router_type', 'rule')
+        summary['anchor_router_hidden'] = int(getattr(args, 'anchor_router_hidden', 16))
+        summary['anchor_router_use_prior'] = int(getattr(args, 'anchor_router_use_prior', 1))
+        summary['anchor_router_temperature'] = float(getattr(args, 'anchor_router_temperature', 1.0))
 
     json_path = stem + '.json'
     with open(json_path, 'w', encoding='utf-8') as f:
@@ -211,6 +216,9 @@ def save_test_predictions_csv(
             'Test DataLoader: shuffle=False, drop_last=False — full test split in metrics/export.'
         ),
         'export_tag': 'full_drop_last_false',
+        'anchor_router_type': (
+            getattr(args, 'anchor_router_type', 'rule') if fc == 'dynamic_missing' else None
+        ),
         'anchor_columns': [
             c
             for c in (

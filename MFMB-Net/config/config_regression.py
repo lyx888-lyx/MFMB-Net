@@ -62,6 +62,11 @@ class ConfigRegression():
         self.args.dynamic_anchor_prior_vision = float(getattr(args, 'dynamic_anchor_prior_vision', 0.22))
         self.args.dynamic_anchor_beta = float(getattr(args, 'dynamic_anchor_beta', 2.0))
         self.args.dynamic_anchor_min_valid = float(getattr(args, 'dynamic_anchor_min_valid', 1e-3))
+        self.args.anchor_router_type = getattr(args, 'anchor_router_type', 'rule')
+        self.args.anchor_router_hidden = int(getattr(args, 'anchor_router_hidden', 16))
+        self.args.anchor_router_dropout = float(getattr(args, 'anchor_router_dropout', 0.1))
+        self.args.anchor_router_use_prior = int(getattr(args, 'anchor_router_use_prior', 1))
+        self.args.anchor_router_temperature = float(getattr(args, 'anchor_router_temperature', 1.0))
         self.args.local_temporal_encoder_type = getattr(args, 'local_temporal_encoder_type', 'legacy')
     
     def __datasetCommonParams(self):
@@ -199,6 +204,12 @@ class ConfigRegression():
                 'dynamic_anchor_prior_vision': 0.22,
                 'dynamic_anchor_beta': 2.0,
                 'dynamic_anchor_min_valid': 1e-3,
+                # dynamic_missing only: rule (soft prior+beta*r) | learnable (MLP on missing-only features).
+                'anchor_router_type': 'rule',
+                'anchor_router_hidden': 16,
+                'anchor_router_dropout': 0.1,
+                'anchor_router_use_prior': 1,
+                'anchor_router_temperature': 1.0,
                 # GATE_F per-modality local encoder: legacy (C_GATE) | mstcn (multi-scale temporal conv).
                 'local_temporal_encoder_type': 'legacy',
                 'recloss_type': 'combine',

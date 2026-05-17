@@ -1,0 +1,13 @@
+missing_rate,best_method_name,note,Mult_acc_7,MAE,Corr
+0.0,text_mstcn,Mult_acc_7=0.538000; tie-break within ±0.002 using MAE then Corr,0.5379999999999999,0.5329,0.7592
+0.1,text,Mult_acc_7=0.514900,0.5149,0.5903,0.7121
+0.15,text,Mult_acc_7=nan,,,
+0.2,text_mstcn,Mult_acc_7=0.511500; tie-break within ±0.002 using MAE then Corr,0.5115,0.5997,0.6801999999999999
+0.25,text,Mult_acc_7=nan,,,
+0.3,text_mstcn,Mult_acc_7=0.500500,0.5005,0.6201,0.6516
+0.35,text,Mult_acc_7=nan,,,
+0.4,text_mstcn,Mult_acc_7=0.487500,0.4875,0.6509999999999999,0.6139
+0.45,text,Mult_acc_7=nan,,,
+0.5,text,Mult_acc_7=0.470700,0.4707,0.6768000000000001,0.5769
+0.55,text,Mult_acc_7=nan,,,
+0.6,dynamic_rule,Mult_acc_7=0.462500,0.4625,0.6987000000000001,0.5294

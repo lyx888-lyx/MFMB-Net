@@ -1,0 +1,133 @@
+{
+  "dataset": "mosi",
+  "dataset_display": "MOSI",
+  "csv_stem": "mosi-regression",
+  "rates_requested": [
+    0.0,
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6
+  ],
+  "provenance": {
+    "0.0": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.0.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.0.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.0.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.0.csv (fallback slug)"
+    },
+    "0.1": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.1.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.1.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.1.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.1.csv (fallback slug)"
+    },
+    "0.15": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.15.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing_router_rule/mosi-regression-0.15.csv",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.15.csv",
+      "dynamic_lte_mstcn": "missing"
+    },
+    "0.2": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.2.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.2.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.2.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.2.csv (fallback slug)"
+    },
+    "0.25": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.25.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing_router_rule/mosi-regression-0.25.csv",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.25.csv",
+      "dynamic_lte_mstcn": "missing"
+    },
+    "0.3": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.3.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.3.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.3.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.3.csv (fallback slug)"
+    },
+    "0.35": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.35.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing_router_rule/mosi-regression-0.35.csv",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.35.csv",
+      "dynamic_lte_mstcn": "missing"
+    },
+    "0.4": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.4.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.4.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.4.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.4.csv (fallback slug)"
+    },
+    "0.45": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.45.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing_router_rule/mosi-regression-0.45.csv",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.45.csv",
+      "dynamic_lte_mstcn": "missing"
+    },
+    "0.5": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.5.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.5.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.5.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.5.csv (fallback slug)"
+    },
+    "0.55": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.55.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing_router_rule/mosi-regression-0.55.csv",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.55.csv",
+      "dynamic_lte_mstcn": "missing"
+    },
+    "0.6": {
+      "text": "normals:results/results/normals/text/mosi-regression-0.6.csv",
+      "dynamic_rule": "normals:results/results/normals/dynamic_missing/mosi-regression-0.6.csv (fallback slug)",
+      "text_mstcn": "normals:results/results/normals/text_lte_mstcn/mosi-regression-0.6.csv",
+      "dynamic_lte_mstcn": "normals:results/results/normals/dynamic_missing_lte_mstcn/mosi-regression-0.6.csv (fallback slug)"
+    }
+  },
+  "policy_primary_mult_acc_7_auilc": {
+    "tau1": 0.2,
+    "tau2": 0.55,
+    "objective_score": 0.19047458333333334,
+    "policy_definition": "if r <= 0.2: dynamic_rule; elif r <= 0.55: text_mstcn; else: text"
+  },
+  "policy_composite_normalized_auilc": {
+    "tau1": 0.2,
+    "tau2": 0.55,
+    "objective_score": 0.9520568642041847,
+    "policy_definition": "if r <= 0.2: dynamic_rule; elif r <= 0.55: text_mstcn; else: text"
+  },
+  "figure_settings": {
+    "auilc_bar_interval": [
+      0.1,
+      0.6
+    ],
+    "auilc_bar_interval_label": "[0.10, 0.60]",
+    "auilc_hi_requested": 1.0,
+    "allow_extrapolate_auilc": false,
+    "main_and_schedule_x_hi": 1.0
+  },
+  "missing_metric_cells": [
+    "- missing_rate **0.15** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr",
+    "- missing_rate **0.25** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr",
+    "- missing_rate **0.35** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr",
+    "- missing_rate **0.45** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr",
+    "- missing_rate **0.55** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr"
+  ],
+  "auilc_clamp_note": "AUILC upper bound was requested as 1 but max observed missing rate is 0.6. **Clamped AUILC integration to [0.10, 0.60]** (no flat extrapolation). Re-run with `--allow-extrapolate-auilc` to extrapolate, or set e.g. `--auilc-interval 0.1,0.60` for MOSEI-style grids.",
+  "highlights_Mult_acc_7_mean_slope_bands": {
+    "slowest_decline_0.1_0.3_Mult_acc_7": "text_mstcn",
+    "mean_slope_band_0.1_0.3": 0.09199999999999992,
+    "slowest_decline_0.3_0.5_Mult_acc_7": "dynamic_rule",
+    "mean_slope_band_0.3_0.5": -0.23083333333333356,
+    "slowest_decline_0.1_0.6_Mult_acc_7": "text",
+    "mean_slope_band_0.1_0.6": -0.2276333333333333
+  },
+  "oracle_disclaimer": "oracle_best_point chooses the best of {text, dynamic_rule, text_mstcn} at each rate using recorded test metrics \u2014 an oracle upper bound, not a single model.",
+  "regime_policy_note": "Thresholds tau1/tau2 are searched on the same recorded curves by default (test-set regime analysis). Lock thresholds on validation for a formal deployable policy."
+}

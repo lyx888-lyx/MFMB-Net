@@ -20,12 +20,24 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 
 
 def _fusion_center_slug(args):
-    """Isolate logs / results / checkpoints between micro-fusion and local-encoder settings."""
+    """Isolate logs / results / checkpoints between micro-fusion, LTE, and dynamic anchor router.
+
+    - text / audio / vision: unchanged (``text``, ``audio_lte_mstcn``, ...).
+    - dynamic_missing: append ``_router_rule`` or ``_router_learnable`` after optional ``_lte_mstcn``.
+      Examples: ``dynamic_missing_router_rule``, ``dynamic_missing_lte_mstcn_router_learnable``.
+    """
     fc = getattr(args, 'fusion_center_modality', 'text')
     lte = getattr(args, 'local_temporal_encoder_type', 'legacy')
     if lte == 'legacy':
-        return fc
-    return '%s_lte_%s' % (fc, lte)
+        base = fc
+    else:
+        base = '%s_lte_%s' % (fc, lte)
+    if fc == 'dynamic_missing':
+        rt = str.lower(str(getattr(args, 'anchor_router_type', 'rule')))
+        if rt not in ('rule', 'learnable'):
+            rt = 'rule'
+        return '%s_router_%s' % (base, rt)
+    return base
 
 
 def _apply_missing_rates(args):
@@ -293,6 +305,38 @@ def parse_args():
         type=float,
         default=1e-3,
         help='Soft dynamic anchor: modalities with valid_ratio below this get near-zero weight.',
+    )
+    parser.add_argument(
+        '--anchor_router_type',
+        type=str,
+        default='rule',
+        choices=['rule', 'learnable'],
+        help="dynamic_missing only: 'rule' (prior+beta*valid_ratio+logit mask) or 'learnable' (MLP on missing features + optional prior bias). Default=rule.",
+    )
+    parser.add_argument(
+        '--anchor_router_hidden',
+        type=int,
+        default=16,
+        help='Learnable anchor router: MLP hidden size (dynamic_missing + learnable only).',
+    )
+    parser.add_argument(
+        '--anchor_router_dropout',
+        type=float,
+        default=0.1,
+        help='Learnable anchor router: dropout after ReLU.',
+    )
+    parser.add_argument(
+        '--anchor_router_use_prior',
+        type=int,
+        default=1,
+        choices=[0, 1],
+        help='1: add learnable prior bias (init from dynamic_anchor_prior_*); 0: MLP logits only.',
+    )
+    parser.add_argument(
+        '--anchor_router_temperature',
+        type=float,
+        default=1.0,
+        help='Softmax temperature T for learnable router logits (divide before softmax).',
     )
     parser.add_argument(
         '--local_temporal_encoder_type',

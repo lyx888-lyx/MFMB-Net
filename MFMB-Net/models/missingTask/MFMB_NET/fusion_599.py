@@ -78,6 +78,63 @@ def _soft_weights_from_missing(
     scores = scores.masked_fill(all_bad, 0.0)
     w = F.softmax(scores, dim=1)
     return w
+
+
+def _router_input_from_valid_ratios(valid_ratios: torch.Tensor) -> torch.Tensor:
+    """Missing-only router features [B, 7]: r, 1-r, mean(1-r) per sample."""
+    r = valid_ratios.to(dtype=torch.float32)
+    one_m = 1.0 - r
+    mean_missing = one_m.mean(dim=1, keepdim=True)
+    return torch.cat((r, one_m, mean_missing), dim=1)
+
+
+class LearnableAnchorRouter(nn.Module):
+    """w = softmax((MLP(router_input) + optional_prior_bias) / T); then same min_valid mask as rule router."""
+
+    def __init__(
+        self,
+        input_dim: int = 7,
+        hidden_dim: int = 16,
+        dropout: float = 0.1,
+        use_prior: bool = True,
+        temperature: float = 1.0,
+        prior_init=None,
+        min_valid_ratio: float = 1e-3,
+    ):
+        super().__init__()
+        if prior_init is None:
+            prior_init = (0.30, 0.24, 0.22)
+        self.min_valid_ratio = float(min_valid_ratio)
+        self.use_prior = bool(use_prior)
+        self.temperature = max(float(temperature), 1e-8)
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(float(dropout)),
+            nn.Linear(hidden_dim, 3),
+        )
+        if self.use_prior:
+            self.prior_bias = nn.Parameter(
+                torch.tensor(list(prior_init), dtype=torch.float32).view(3)
+            )
+        else:
+            self.register_parameter('prior_bias', None)
+
+    def forward(
+        self, router_input: torch.Tensor, valid_ratios: torch.Tensor
+    ) -> tuple:
+        logits = self.net(router_input)
+        if self.use_prior and self.prior_bias is not None:
+            logits = logits + self.prior_bias.view(1, 3)
+        r = valid_ratios.to(dtype=logits.dtype)
+        logits = logits.masked_fill(r < self.min_valid_ratio, -1e4)
+        all_bad = (r < self.min_valid_ratio).all(dim=1, keepdim=True)
+        logits = logits.masked_fill(all_bad, 0.0)
+        logits = logits / self.temperature
+        weights = F.softmax(logits, dim=-1)
+        return weights, logits
+
+
 class MLP_block(nn.Module):
     def __init__(self,input_size,hidden_size,dropout=0.5):
         super().__init__()
@@ -316,10 +373,6 @@ class GATE_F(nn.Module):
             )
         # Ut/Uv/Ua in common space; used for logging (micro-fusion pair semantics).
         if self.fusion_center_modality == 'dynamic_missing':
-            self._micro_fusion_pair_labels = (
-                '(soft blend of text/audio/vision micro-fusion centers)',
-                '(weights from valid_ratio + prior + softmax; missing-only)',
-            )
             self.dynamic_anchor_prior_text = float(
                 getattr(args, 'dynamic_anchor_prior_text', 0.30)
             )
@@ -333,6 +386,40 @@ class GATE_F(nn.Module):
             self.dynamic_anchor_min_valid = float(
                 getattr(args, 'dynamic_anchor_min_valid', 1e-3)
             )
+            self.anchor_router_type = str.lower(
+                str(getattr(args, 'anchor_router_type', 'rule'))
+            )
+            if self.anchor_router_type not in ('rule', 'learnable'):
+                raise ValueError("anchor_router_type must be 'rule' or 'learnable'")
+            self._micro_fusion_pair_labels = (
+                '(soft blend of text/audio/vision micro-fusion centers)',
+                '(learnable MLP on missing-only features + optional prior)'
+                if self.anchor_router_type == 'learnable'
+                else '(weights from valid_ratio + prior + softmax; missing-only)',
+            )
+            self.anchor_router_hidden = int(getattr(args, 'anchor_router_hidden', 16))
+            self.anchor_router_dropout = float(getattr(args, 'anchor_router_dropout', 0.1))
+            self.anchor_router_use_prior = bool(
+                int(getattr(args, 'anchor_router_use_prior', 1))
+            )
+            self.anchor_router_temperature = float(
+                getattr(args, 'anchor_router_temperature', 1.0)
+            )
+            self.learnable_anchor_router = None
+            if self.anchor_router_type == 'learnable':
+                self.learnable_anchor_router = LearnableAnchorRouter(
+                    input_dim=7,
+                    hidden_dim=self.anchor_router_hidden,
+                    dropout=self.anchor_router_dropout,
+                    use_prior=self.anchor_router_use_prior,
+                    temperature=self.anchor_router_temperature,
+                    prior_init=(
+                        self.dynamic_anchor_prior_text,
+                        self.dynamic_anchor_prior_audio,
+                        self.dynamic_anchor_prior_vision,
+                    ),
+                    min_valid_ratio=self.dynamic_anchor_min_valid,
+                )
             pt, pa, pv = (
                 self.dynamic_anchor_prior_text,
                 self.dynamic_anchor_prior_audio,
@@ -400,6 +487,14 @@ class GATE_F(nn.Module):
                 self.dynamic_anchor_prior_vision,
                 self.dynamic_anchor_beta,
                 self.dynamic_anchor_min_valid,
+            )
+            log.info(
+                'GATE_F anchor_router_type=%s hidden=%s dropout=%.4f use_prior=%s temperature=%.4f',
+                self.anchor_router_type,
+                self.anchor_router_hidden,
+                self.anchor_router_dropout,
+                self.anchor_router_use_prior,
+                self.anchor_router_temperature,
             )
 
     def forward(
@@ -483,14 +578,20 @@ class GATE_F(nn.Module):
             valid_ratios = _compute_modality_valid_ratios_from_missing(
                 mm_t, mm_a, mm_v, text_mask, audio_mask, vision_mask
             )
-            weights = _soft_weights_from_missing(
-                valid_ratios,
-                self.dynamic_anchor_prior_text,
-                self.dynamic_anchor_prior_audio,
-                self.dynamic_anchor_prior_vision,
-                self.dynamic_anchor_beta,
-                min_valid_ratio=self.dynamic_anchor_min_valid,
-            )
+            if self.anchor_router_type == 'learnable':
+                if self.learnable_anchor_router is None:
+                    raise RuntimeError('learnable anchor router not initialized')
+                ri = _router_input_from_valid_ratios(valid_ratios)
+                weights, _ = self.learnable_anchor_router(ri, valid_ratios)
+            else:
+                weights = _soft_weights_from_missing(
+                    valid_ratios,
+                    self.dynamic_anchor_prior_text,
+                    self.dynamic_anchor_prior_audio,
+                    self.dynamic_anchor_prior_vision,
+                    self.dynamic_anchor_beta,
+                    min_valid_ratio=self.dynamic_anchor_min_valid,
+                )
             # Three fixed-center micro branches; each center uses its own BN (fair vs fixed modes).
             p1_t = torch.stack((Ut, Uv), dim=0)
             p2_t = torch.stack((Ut, Ua), dim=0)
@@ -542,20 +643,23 @@ class GATE_F(nn.Module):
             n_aud = int((dom == _MOD_AUDIO).sum().item())
             n_vis = int((dom == _MOD_VISION).sum().item())
             log.info(
-                '[GATE_F] dynamic_missing (soft, first batch): mean valid_ratio text=%.4f audio=%.4f vision=%.4f',
+                '[GATE_F] dynamic_missing (first batch, router=%s): mean valid_ratio text=%.4f audio=%.4f vision=%.4f',
+                self.anchor_router_type,
                 float(valid_ratios[:, 0].mean().item()),
                 float(valid_ratios[:, 1].mean().item()),
                 float(valid_ratios[:, 2].mean().item()),
             )
             log.info(
-                '[GATE_F] dynamic_missing (soft, first batch): mean soft weights text=%.4f audio=%.4f vision=%.4f',
+                '[GATE_F] dynamic_missing (first batch, router=%s): mean router weights text=%.4f audio=%.4f vision=%.4f',
+                self.anchor_router_type,
                 float(weights[:, 0].mean().item()),
                 float(weights[:, 1].mean().item()),
                 float(weights[:, 2].mean().item()),
             )
             log.info(
-                '[GATE_F] dynamic_missing (soft, first batch): dominant-center (argmax w) counts: '
+                '[GATE_F] dynamic_missing (first batch, router=%s): dominant-center (argmax w) counts: '
                 'text=%d, audio=%d, vision=%d (batch_size=%d)',
+                self.anchor_router_type,
                 n_txt,
                 n_aud,
                 n_vis,

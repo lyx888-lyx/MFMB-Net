@@ -1,0 +1,13 @@
+missing_rate,selected_method,selected_slug,Has0_acc_2,Has0_F1_score,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7,MAE,Corr,Loss
+0.0,dynamic_rule,dynamic_missing_router_rule,0.7820999999999999,0.7764,0.8305,0.831,0.5552,0.5357,0.544,0.7518,0.5437
+0.1,dynamic_rule,dynamic_missing_router_rule,0.8151,0.813,0.8337,0.8359000000000001,0.5158,0.5035000000000001,0.5908,0.7111,0.5904
+0.15,text_mstcn,text_lte_mstcn,,,,,,,,,
+0.2,text_mstcn,text_lte_mstcn,0.8268000000000001,0.836,0.8066,0.8181999999999999,0.5279,0.5115,0.5997,0.6801999999999999,0.5995
+0.25,text_mstcn,text_lte_mstcn,,,,,,,,,
+0.3,text_mstcn,text_lte_mstcn,0.7351000000000001,0.73,0.7745000000000001,0.7775,0.5115,0.5005,0.6201,0.6516,0.6198
+0.35,text_mstcn,text_lte_mstcn,,,,,,,,,
+0.4,text_mstcn,text_lte_mstcn,0.703,0.6914,0.7587,0.7569,0.4982,0.4875,0.6509999999999999,0.6139,0.6505
+0.45,text_mstcn,text_lte_mstcn,,,,,,,,,
+0.5,text_mstcn,text_lte_mstcn,0.7654000000000001,0.7703,0.7626000000000001,0.7735,0.47700000000000004,0.4686,0.6807,0.5720000000000001,0.6807
+0.55,text_mstcn,text_lte_mstcn,,,,,,,,,
+0.6,text_mstcn,text_lte_mstcn,0.7238,0.7222,0.7402,0.7469,0.4636,0.4582,0.6983,0.5367999999999999,0.6984
