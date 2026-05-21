@@ -7,26 +7,7 @@
 
 ## Data availability audit
 
-- missing_rate **0.15** / **text** (Baseline): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.15** / **dynamic_rule** (Ours-Dynamic): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.15** / **text_mstcn** (Ours-MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.15** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.25** / **text** (Baseline): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.25** / **dynamic_rule** (Ours-Dynamic): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.25** / **text_mstcn** (Ours-MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.25** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.35** / **text** (Baseline): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.35** / **dynamic_rule** (Ours-Dynamic): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.35** / **text_mstcn** (Ours-MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.35** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.45** / **text** (Baseline): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.45** / **dynamic_rule** (Ours-Dynamic): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.45** / **text_mstcn** (Ours-MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.45** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.55** / **text** (Baseline): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.55** / **dynamic_rule** (Ours-Dynamic): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.55** / **text_mstcn** (Ours-MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
-- missing_rate **0.55** / **dynamic_lte_mstcn** (Ours-Dynamic+MSTCN): no usable normals or predictions for Mult_acc_7, MAE, Corr
+*No missing cells: Mult_acc_7 / MAE / Corr present for every listed method and rate (see console table).*
 
 ## AUILC integration note
 
@@ -52,10 +33,10 @@ where each \(z\) is **min–max normalized across the three branches** at that r
 
 | Item | Objective A (Mult_acc_7 AUILC) | Objective B (composite AUILC) |
 |------|-------------------------------|-------------------------------|
-| **best_tau1** | 0.1 | 0.0 |
-| **best_tau2** | 0.6 | 0.0 |
-| **objective_value** | 0.296855 | 1.1073508999604234 |
-| **policy_definition** | if r <= 0.1: dynamic_rule; elif r <= 0.6: text_mstcn; else: text | if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text |
+| **best_tau1** | 0.0 | 0.0 |
+| **best_tau2** | 0.0 | 0.0 |
+| **objective_value** | 0.2970325 | 0.9778026105075432 |
+| **policy_definition** | if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text | if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text |
 
 **Primary policy used in `policy_metrics_by_missing.csv` and figures:** Objective **A**.
 
@@ -63,7 +44,7 @@ where each \(z\) is **min–max normalized across the three branches** at that r
 
 ## Policy definition (primary)
 
-if r <= 0.1: dynamic_rule; elif r <= 0.6: text_mstcn; else: text
+if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text
 
 Branches:
 
@@ -76,17 +57,17 @@ Branches:
 ## Which branch at each missing rate (primary policy)
 
 - missing_rate **0.0** → `dynamic_rule` (slug `dynamic_missing_router_rule`)
-- missing_rate **0.1** → `dynamic_rule` (slug `dynamic_missing_router_rule`)
-- missing_rate **0.15** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.2** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.25** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.3** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.35** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.4** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.45** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.5** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.55** → `text_mstcn` (slug `text_lte_mstcn`)
-- missing_rate **0.6** → `text_mstcn` (slug `text_lte_mstcn`)
+- missing_rate **0.1** → `text` (slug `text`)
+- missing_rate **0.15** → `text` (slug `text`)
+- missing_rate **0.2** → `text` (slug `text`)
+- missing_rate **0.25** → `text` (slug `text`)
+- missing_rate **0.3** → `text` (slug `text`)
+- missing_rate **0.35** → `text` (slug `text`)
+- missing_rate **0.4** → `text` (slug `text`)
+- missing_rate **0.45** → `text` (slug `text`)
+- missing_rate **0.5** → `text` (slug `text`)
+- missing_rate **0.55** → `text` (slug `text`)
+- missing_rate **0.6** → `text` (slug `text`)
 
 ---
 
@@ -98,54 +79,54 @@ Intervals: **0.0–0.6**, **0.1–0.6** (and **0.0–1.0** if `--extend-auilc-to
 
 ```
             curve     metric interval    auilc better_direction
-dynamic_lte_mstcn       Corr  0.0_0.6 0.390785           higher
-dynamic_lte_mstcn       Corr  0.1_0.6 0.316825           higher
-dynamic_lte_mstcn        MAE  0.0_0.6 0.379020            lower
-dynamic_lte_mstcn        MAE  0.1_0.6 0.322430            lower
-dynamic_lte_mstcn Mult_acc_5  0.0_0.6 0.300460           higher
-dynamic_lte_mstcn Mult_acc_5  0.1_0.6 0.246670           higher
-dynamic_lte_mstcn Mult_acc_7  0.0_0.6 0.293240           higher
-dynamic_lte_mstcn Mult_acc_7  0.1_0.6 0.241235           higher
-     dynamic_rule       Corr  0.0_0.6 0.386240           higher
-     dynamic_rule       Corr  0.1_0.6 0.313095           higher
-     dynamic_rule        MAE  0.0_0.6 0.378905            lower
-     dynamic_rule        MAE  0.1_0.6 0.322165            lower
-     dynamic_rule Mult_acc_5  0.0_0.6 0.302125           higher
-     dynamic_rule Mult_acc_5  0.1_0.6 0.248575           higher
-     dynamic_rule Mult_acc_7  0.0_0.6 0.294730           higher
-     dynamic_rule Mult_acc_7  0.1_0.6 0.242770           higher
-oracle_best_point       Corr  0.0_0.6 0.391580           higher
-oracle_best_point       Corr  0.1_0.6 0.318015           higher
-oracle_best_point        MAE  0.0_0.6 0.374750            lower
-oracle_best_point        MAE  0.1_0.6 0.318590            lower
-oracle_best_point Mult_acc_5  0.0_0.6 0.305535           higher
-oracle_best_point Mult_acc_5  0.1_0.6 0.251405           higher
-oracle_best_point Mult_acc_7  0.0_0.6 0.298535           higher
-oracle_best_point Mult_acc_7  0.1_0.6 0.245890           higher
-    regime_policy       Corr  0.0_0.6 0.387310           higher
-    regime_policy       Corr  0.1_0.6 0.314165           higher
-    regime_policy        MAE  0.0_0.6 0.376345            lower
-    regime_policy        MAE  0.1_0.6 0.319605            lower
-    regime_policy Mult_acc_5  0.0_0.6 0.303980           higher
-    regime_policy Mult_acc_5  0.1_0.6 0.250430           higher
-    regime_policy Mult_acc_7  0.0_0.6 0.296855           higher
-    regime_policy Mult_acc_7  0.1_0.6 0.244895           higher
-             text       Corr  0.0_0.6 0.391365           higher
-             text       Corr  0.1_0.6 0.318015           higher
-             text        MAE  0.0_0.6 0.376860            lower
-             text        MAE  0.1_0.6 0.320305            lower
-             text Mult_acc_5  0.0_0.6 0.303495           higher
-             text Mult_acc_5  0.1_0.6 0.249525           higher
-             text Mult_acc_7  0.0_0.6 0.296535           higher
-             text Mult_acc_7  0.1_0.6 0.243985           higher
-       text_mstcn       Corr  0.0_0.6 0.387530           higher
-       text_mstcn       Corr  0.1_0.6 0.314090           higher
-       text_mstcn        MAE  0.0_0.6 0.376110            lower
-       text_mstcn        MAE  0.1_0.6 0.319765            lower
-       text_mstcn Mult_acc_5  0.0_0.6 0.304480           higher
-       text_mstcn Mult_acc_5  0.1_0.6 0.250695           higher
-       text_mstcn Mult_acc_7  0.0_0.6 0.296940           higher
-       text_mstcn Mult_acc_7  0.1_0.6 0.244880           higher
+dynamic_lte_mstcn       Corr  0.0_0.6 0.390557           higher
+dynamic_lte_mstcn       Corr  0.1_0.6 0.316597           higher
+dynamic_lte_mstcn        MAE  0.0_0.6 0.378255            lower
+dynamic_lte_mstcn        MAE  0.1_0.6 0.321665            lower
+dynamic_lte_mstcn Mult_acc_5  0.0_0.6 0.300770           higher
+dynamic_lte_mstcn Mult_acc_5  0.1_0.6 0.246980           higher
+dynamic_lte_mstcn Mult_acc_7  0.0_0.6 0.293542           higher
+dynamic_lte_mstcn Mult_acc_7  0.1_0.6 0.241537           higher
+     dynamic_rule       Corr  0.0_0.6 0.388152           higher
+     dynamic_rule       Corr  0.1_0.6 0.315007           higher
+     dynamic_rule        MAE  0.0_0.6 0.378122            lower
+     dynamic_rule        MAE  0.1_0.6 0.321382            lower
+     dynamic_rule Mult_acc_5  0.0_0.6 0.301507           higher
+     dynamic_rule Mult_acc_5  0.1_0.6 0.247957           higher
+     dynamic_rule Mult_acc_7  0.0_0.6 0.294810           higher
+     dynamic_rule Mult_acc_7  0.1_0.6 0.242850           higher
+oracle_best_point       Corr  0.0_0.6 0.391492           higher
+oracle_best_point       Corr  0.1_0.6 0.317927           higher
+oracle_best_point        MAE  0.0_0.6 0.374285            lower
+oracle_best_point        MAE  0.1_0.6 0.318125            lower
+oracle_best_point Mult_acc_5  0.0_0.6 0.305237           higher
+oracle_best_point Mult_acc_5  0.1_0.6 0.251107           higher
+oracle_best_point Mult_acc_7  0.0_0.6 0.298550           higher
+oracle_best_point Mult_acc_7  0.1_0.6 0.245905           higher
+    regime_policy       Corr  0.0_0.6 0.389043           higher
+    regime_policy       Corr  0.1_0.6 0.315848           higher
+    regime_policy        MAE  0.0_0.6 0.376943            lower
+    regime_policy        MAE  0.1_0.6 0.320227            lower
+    regime_policy Mult_acc_5  0.0_0.6 0.304177           higher
+    regime_policy Mult_acc_5  0.1_0.6 0.250047           higher
+    regime_policy Mult_acc_7  0.0_0.6 0.297032           higher
+    regime_policy Mult_acc_7  0.1_0.6 0.244502           higher
+             text       Corr  0.0_0.6 0.389197           higher
+             text       Corr  0.1_0.6 0.315848           higher
+             text        MAE  0.0_0.6 0.376783            lower
+             text        MAE  0.1_0.6 0.320227            lower
+             text Mult_acc_5  0.0_0.6 0.304017           higher
+             text Mult_acc_5  0.1_0.6 0.250047           higher
+             text Mult_acc_7  0.0_0.6 0.297052           higher
+             text Mult_acc_7  0.1_0.6 0.244502           higher
+       text_mstcn       Corr  0.0_0.6 0.389180           higher
+       text_mstcn       Corr  0.1_0.6 0.315740           higher
+       text_mstcn        MAE  0.0_0.6 0.376563            lower
+       text_mstcn        MAE  0.1_0.6 0.320217            lower
+       text_mstcn Mult_acc_5  0.0_0.6 0.304017           higher
+       text_mstcn Mult_acc_5  0.1_0.6 0.250232           higher
+       text_mstcn Mult_acc_7  0.0_0.6 0.296250           higher
+       text_mstcn Mult_acc_7  0.1_0.6 0.244190           higher
 ```
 
 Higher AUILC is better for accuracy / correlation metrics; **lower** is better for MAE / Loss.
@@ -158,9 +139,9 @@ Mean slope over segments whose **midpoint** lies in each band (larger = slower d
 
 | Band | Slowest decline (method) | Mean slope in band |
 |------|--------------------------|--------------------|
-| 0.1 – 0.3 | None | nan |
-| 0.3 – 0.5 | None | nan |
-| 0.1 – 0.6 | None | nan |
+| 0.1 – 0.3 | text_mstcn | -0.01350000000000018 |
+| 0.3 – 0.5 | text | -0.1269999999999999 |
+| 0.1 – 0.6 | dynamic_rule | -0.08200000000000006 |
 
 Full segment table: `slope_by_method.csv`. Aggregates: `average_degradation_slope.csv`.
 

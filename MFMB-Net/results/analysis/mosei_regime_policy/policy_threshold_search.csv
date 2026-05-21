@@ -1,3 +1,3 @@
 objective_name,best_tau1,best_tau2,objective_value,policy_definition
-max_auilc_Mult_acc_7,0.1,0.6,0.296855,if r <= 0.1: dynamic_rule; elif r <= 0.6: text_mstcn; else: text
-max_auilc_composite_normalized,0.0,0.0,1.1073508999604234,if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text
+max_auilc_Mult_acc_7,0.0,0.0,0.2970325,if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text
+max_auilc_composite_normalized,0.0,0.0,0.9778026105075432,if r <= 0: dynamic_rule; elif r <= 0: text_mstcn; else: text

@@ -1,0 +1,2 @@
+datasetName,fusion_center_modality,seed,missing,text_missing_rate,audio_missing_rate,vision_missing_rate,n_test_samples,mean_w_text,mean_w_audio,mean_w_vision,std_w_text,std_w_audio,std_w_vision,dominant_text_count,dominant_audio_count,dominant_vision_count,dominant_text_ratio,dominant_audio_ratio,dominant_vision_ratio,mean_valid_ratio_text,mean_valid_ratio_audio,mean_valid_ratio_vision
+mosei,text,111,0.35,0.35,0.35,0.35,4659,1.0,0.0,0.0,0.0,0.0,0.0,4659,0,0,1.0,0.0,0.0,0.6830161213874817,0.6487301588058472,0.6487115621566772
