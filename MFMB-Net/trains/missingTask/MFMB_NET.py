@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import numpy as np
+import pandas as pd
 from glob import glob
 from tqdm import tqdm
 
@@ -20,6 +21,38 @@ class MFMB_NET():
         self.args = args
         self.criterion = nn.L1Loss() if args.train_mode == 'regression' else nn.CrossEntropyLoss()
         self.metrics = MetricsTop(args.train_mode).getMetics(args.datasetName)
+
+    @staticmethod
+    def _get_fusion_core(model):
+        # AMIO -> MFMB_NET -> Fusion -> GATE_F
+        model_core = getattr(model, 'Model', None)
+        if model_core is None:
+            return None
+        fusion_wrapper = getattr(model_core, 'fusion_subnet', None)
+        if fusion_wrapper is None:
+            return None
+        return getattr(fusion_wrapper, 'Model', None)
+
+    def _dump_anchor_weights(self, rows):
+        if not rows:
+            return
+
+        os.makedirs('results/anchor_weights', exist_ok=True)
+        if len(set([round(x, 8) for x in self.args.missing_rate])) == 1:
+            missing_tag = str(self.args.missing_rate[0])
+        else:
+            missing_tag = f"t{self.args.missing_rate[0]}_a{self.args.missing_rate[1]}_v{self.args.missing_rate[2]}"
+
+        mode_tag = self.args.fusion_center_mode
+        if int(getattr(self.args, 'use_anchor_moe', 0)) == 1:
+            mode_tag = f'{mode_tag}_moe'
+
+        save_path = (
+            f"results/anchor_weights/"
+            f"{self.args.datasetName}_missing{missing_tag}_seed{self.args.seed}_{mode_tag}.csv"
+        )
+        pd.DataFrame(rows).to_csv(save_path, index=False)
+        logger.info('Anchor weights exported to %s', save_path)
 
     def do_train(self, model, dataloader):
         if self.args.use_bert_finetune:
@@ -122,6 +155,9 @@ class MFMB_NET():
     def do_test(self, model, dataloader, mode="VAL"):
         model.eval()
         y_pred, y_true = [], []
+        export_rows = []
+        fusion_core = self._get_fusion_core(model)
+        anchor_map = {0: 'text', 1: 'audio', 2: 'vision'}
         eval_loss, predict_loss, generate_loss = 0.0, 0.0, 0.0
         with torch.no_grad():
             with tqdm(dataloader) as td:
@@ -158,6 +194,49 @@ class MFMB_NET():
 
                     y_pred.append(outputs.cpu())
                     y_true.append(labels.cpu())
+
+                    if int(getattr(self.args, 'export_anchor_weights', 0)) == 1 and mode == "TEST" and fusion_core is not None:
+                        router_info = getattr(fusion_core, 'last_router_info', {})
+                        router_weights = router_info.get('router_weights', None)
+                        availability = router_info.get('availability', None)
+                        selected_idx = router_info.get('selected_anchor_idx', None)
+
+                        if router_weights is not None and availability is not None and selected_idx is not None:
+                            rw = router_weights.detach().cpu().numpy()
+                            av = availability.detach().cpu().numpy()
+                            si = selected_idx.detach().cpu().numpy()
+                            yp = outputs.detach().cpu().numpy().reshape(-1)
+                            yt = labels.detach().cpu().numpy().reshape(-1)
+
+                            batch_ids = batch_data.get('id', [None] * len(yp))
+                            batch_indices = batch_data.get('index', list(range(len(yp))))
+
+                            if torch.is_tensor(batch_indices):
+                                batch_indices = batch_indices.detach().cpu().numpy().tolist()
+                            elif isinstance(batch_indices, np.ndarray):
+                                batch_indices = batch_indices.tolist()
+                            else:
+                                batch_indices = list(batch_indices)
+
+                            if torch.is_tensor(batch_ids):
+                                batch_ids = batch_ids.detach().cpu().numpy().tolist()
+                            else:
+                                batch_ids = list(batch_ids)
+
+                            for i in range(len(yp)):
+                                export_rows.append({
+                                    'index': int(batch_indices[i]) if batch_indices[i] is not None else i,
+                                    'id': str(batch_ids[i]),
+                                    'y_true': float(yt[i]),
+                                    'y_pred': float(yp[i]),
+                                    'w_text': float(rw[i, 0]),
+                                    'w_audio': float(rw[i, 1]),
+                                    'w_vision': float(rw[i, 2]),
+                                    'selected_anchor': anchor_map.get(int(si[i]), 'text'),
+                                    'availability_text': float(av[i, 0]),
+                                    'availability_audio': float(av[i, 1]),
+                                    'availability_vision': float(av[i, 2]),
+                                })
         eval_loss = eval_loss / len(dataloader)
 
         pred, true = torch.cat(y_pred), torch.cat(y_true)
@@ -165,4 +244,6 @@ class MFMB_NET():
         eval_results["Loss"] = round(eval_loss, 4)
 
         logger.info("%s-(%s) >> %s" % (mode, self.args.modelName, dict_to_str(eval_results)))
+        if int(getattr(self.args, 'export_anchor_weights', 0)) == 1 and mode == "TEST":
+            self._dump_anchor_weights(export_rows)
         return eval_results

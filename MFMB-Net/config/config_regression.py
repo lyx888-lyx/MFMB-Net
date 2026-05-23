@@ -26,11 +26,16 @@ class ConfigRegression():
             dataArgs = dataArgs['aligned'] if (commonArgs['need_data_aligned'] and 'aligned' in dataArgs) else dataArgs['unaligned']
             
         # integrate all parameters
-        self.args = Storage(dict(vars(args),
-                            **dataArgs,
-                            **commonArgs,
-                            **HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name],
-                            ))
+        # Keep config defaults, but let CLI args override them finally.
+        # This is required for runtime switches like:
+        # --fusion_center_mode / --use_anchor_moe / --export_anchor_weights / --missing
+        merged = {}
+        merged.update(dataArgs)
+        merged.update(commonArgs)
+        merged.update(HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name])
+        # CLI args override config defaults.
+        merged.update(vars(args))
+        self.args = Storage(merged)
     
     def __datasetCommonParams(self):
         root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
@@ -169,6 +174,17 @@ class ConfigRegression():
                 # use attention mask for Transformer
                 'attn_mask': True, 
                 'update_epochs': 4,
+
+                # Dynamic anchor + Anchor-MoE options
+                'fusion_center_mode': 'text',
+                'use_anchor_moe': 0,
+                'router_hidden_dim': 64,
+                'router_dropout': 0.1,
+                'router_temperature': 1.0,
+                'router_missing_bias': 2.0,
+                'router_use_missing': 1,
+                'router_balance_lambda': 0.0,
+                'export_anchor_weights': 0,
             },
             # dataset
             'datasetParas':{

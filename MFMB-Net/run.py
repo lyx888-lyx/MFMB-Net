@@ -98,6 +98,12 @@ def run_normal(args):
     model_results = []
     seeds = args.seeds
     missing_rate = 0.0
+
+    def _missing_tag(missing_rate_tuple):
+        if len(set([round(x, 8) for x in missing_rate_tuple])) == 1:
+            return str(missing_rate_tuple[0])
+        return f"t{missing_rate_tuple[0]}_a{missing_rate_tuple[1]}_v{missing_rate_tuple[2]}"
+
     # run results
     for i, seed in enumerate(seeds):
         args = init_args
@@ -105,7 +111,7 @@ def run_normal(args):
         config = ConfigRegression(args)
         args = config.get_config()
         if i == 0 and args.data_missing:
-            missing_rate = str(args.missing_rate[0])
+            missing_rate = _missing_tag(args.missing_rate)
         setup_seed(seed)
         args.seed = seed
         logger.info('Start running %s...' %(args.modelName))
@@ -169,11 +175,43 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument('--missing_t', type=float, default=None)
+    parser.add_argument('--missing_a', type=float, default=None)
+    parser.add_argument('--missing_v', type=float, default=None)
+
+    parser.add_argument('--fusion_center_mode', type=str, default='text',
+                        choices=['text', 'audio', 'vision', 'dynamic_soft', 'dynamic_hard'])
+    parser.add_argument('--use_anchor_moe', type=int, default=0)
+    parser.add_argument('--router_hidden_dim', type=int, default=64)
+    parser.add_argument('--router_dropout', type=float, default=0.1)
+    parser.add_argument('--router_temperature', type=float, default=1.0)
+    parser.add_argument('--router_missing_bias', type=float, default=2.0)
+    parser.add_argument('--router_use_missing', type=int, default=1)
+    parser.add_argument('--router_balance_lambda', type=float, default=0.0)
+    parser.add_argument('--export_anchor_weights', type=int, default=0)
+    parser.add_argument('--train_drop_last', type=int, default=1,
+                        help='whether to drop last incomplete train batch (1/0)')
+    parser.add_argument('--eval_drop_last', type=int, default=0,
+                        help='whether to drop last incomplete valid batch (1/0)')
+    parser.add_argument('--test_drop_last', type=int, default=0,
+                        help='whether to drop last incomplete test batch (1/0)')
+    parser.add_argument('--seeds', type=str, default='',
+                        help='comma-separated random seeds, e.g. 111,1111,11111. '
+                             'If empty, use project default seeds.')
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
-    args.missing_rate = tuple([args.missing, args.missing, args.missing])
+    if args.missing_t is None and args.missing_a is None and args.missing_v is None:
+        args.missing_rate = (args.missing, args.missing, args.missing)
+    else:
+        mt = args.missing if args.missing_t is None else args.missing_t
+        ma = args.missing if args.missing_a is None else args.missing_a
+        mv = args.missing if args.missing_v is None else args.missing_v
+        args.missing_rate = (mt, ma, mv)
     global logger; logger = set_log(args)
-    args.seeds = [111, 1111, 11111]
+    if args.seeds and str(args.seeds).strip():
+        args.seeds = [int(x.strip()) for x in str(args.seeds).split(',') if x.strip()]
+    else:
+        args.seeds = [111, 1111, 11111]
     run_normal(args)

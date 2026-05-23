@@ -208,14 +208,49 @@ def MMDataLoader(args):
     if 'seq_lens' in args:
         args.seq_lens = datasets['train'].get_seq_len() 
 
+    # Split-specific drop_last controls.
+    # Defaults preserve original train behavior while enabling full eval coverage.
+    train_drop_last = bool(int(getattr(args, 'train_drop_last', 1)))
+    eval_drop_last = bool(int(getattr(args, 'eval_drop_last', 0)))
+    test_drop_last = bool(int(getattr(args, 'test_drop_last', 0)))
+
+    split_drop_last = {
+        'train': train_drop_last,
+        'valid': eval_drop_last,
+        'test': test_drop_last,
+    }
+
     dataLoader = {
-        ds: DataLoader(datasets[ds],
-                       batch_size=args.batch_size,
-                       num_workers=args.num_workers,
-                       shuffle=True,
-                       drop_last=True
-                       )
+        ds: DataLoader(
+            datasets[ds],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            shuffle=True,
+            drop_last=split_drop_last[ds],
+        )
         for ds in datasets.keys()
     }
+
+    def _effective_count(num_samples, drop_last, batch_size):
+        if drop_last:
+            return (num_samples // batch_size) * batch_size
+        return num_samples
+
+    train_n = len(datasets['train'])
+    valid_n = len(datasets['valid'])
+    test_n = len(datasets['test'])
+    eff_train_n = _effective_count(train_n, train_drop_last, args.batch_size)
+    eff_valid_n = _effective_count(valid_n, eval_drop_last, args.batch_size)
+    eff_test_n = _effective_count(test_n, test_drop_last, args.batch_size)
+
+    logger.info("train samples: %s", train_n)
+    logger.info("valid samples: %s", valid_n)
+    logger.info("test samples: %s", test_n)
+    logger.info("train_drop_last: %s", int(train_drop_last))
+    logger.info("eval_drop_last: %s", int(eval_drop_last))
+    logger.info("test_drop_last: %s", int(test_drop_last))
+    logger.info("effective_train_samples: %s", eff_train_n)
+    logger.info("effective_valid_samples: %s", eff_valid_n)
+    logger.info("effective_test_samples: %s", eff_test_n)
     
     return dataLoader

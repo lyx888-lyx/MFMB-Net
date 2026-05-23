@@ -10,3 +10,6 @@ __pycache__/
 *.log
 *.ckpt
 *.h5
+
+/results/anchor_weights
+/results/auto_anchor_runs

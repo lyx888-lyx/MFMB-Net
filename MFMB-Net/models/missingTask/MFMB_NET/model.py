@@ -127,16 +127,39 @@ class MFMB_NET(nn.Module):
             audio_gen_loss = self.gen_loss(audio_, audio, audio_mask - missing_mask_a)
             vision_gen_loss = self.gen_loss(vision_, vision, vision_mask - missing_mask_v)
 
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))  
-                
-            #prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask),text_,audio_,vision_)
-            
-            #torch.Size([24, 1])
-            #24,1
+            # NOTE:
+            # `missing_mask_*` in current data pipeline is actually observed mask
+            # (1 means observed/kept position). We pass it into fusion for
+            # missing-aware dynamic anchor routing.
+            fusion_out = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
+            if isinstance(fusion_out, tuple):
+                prediction, fusion_aux_loss = fusion_out
+            else:
+                prediction = fusion_out
+                fusion_aux_loss = torch.tensor(0.0, device=self.args.device)
 
-            return prediction, self.args.weight_gen_loss[0] * text_gen_loss + self.args.weight_gen_loss[1] * audio_gen_loss + self.args.weight_gen_loss[2] * vision_gen_loss
+            gen_loss = (
+                self.args.weight_gen_loss[0] * text_gen_loss
+                + self.args.weight_gen_loss[1] * audio_gen_loss
+                + self.args.weight_gen_loss[2] * vision_gen_loss
+            )
+
+            return prediction, gen_loss + fusion_aux_loss
             
         else:
-            prediction = self.fusion_subnet((text_h, text_mask), (audio_h, audio_mask), (vision_h, vision_mask))
-            return prediction, torch.Tensor([0]).to(self.args.device)
+            fusion_out = self.fusion_subnet(
+                (text_h, text_mask, missing_mask_t),
+                (audio_h, audio_mask, missing_mask_a),
+                (vision_h, vision_mask, missing_mask_v),
+            )
+            if isinstance(fusion_out, tuple):
+                prediction, fusion_aux_loss = fusion_out
+            else:
+                prediction = fusion_out
+                fusion_aux_loss = torch.tensor(0.0, device=self.args.device)
+            return prediction, fusion_aux_loss
         
