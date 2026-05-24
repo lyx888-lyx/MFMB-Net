@@ -1,0 +1,7 @@
+dataset,missing,mode,mean_w_text,mean_w_audio,mean_w_vision,selected_text_ratio,selected_audio_ratio,selected_vision_ratio,entropy,corr_availability_text_w_text,corr_availability_audio_w_audio,corr_availability_vision_w_vision,seed_count,dominant_anchor,dominant_anchor_ratio,is_router_collapsed
+mosi,0.300000,dynamic_soft,0.333307,0.333538,0.333155,0.333333,0.333333,0.333333,0.002426,0.531279,0.517307,0.466605,3,audio,0.333538,False
+mosi,0.300000,dynamic_soft_moe,0.198641,0.695630,0.105730,0.185516,0.814484,0.000000,0.622213,0.818517,0.704875,0.669740,3,audio,0.695630,False
+mosi,0.400000,dynamic_soft,0.999470,0.000419,0.000111,1.000000,0.000000,0.000000,0.004208,0.529134,0.322975,0.363690,3,text,0.999470,True
+mosi,0.400000,dynamic_soft_moe,0.009226,0.540051,0.450722,0.000000,0.659226,0.340774,0.252131,0.558953,0.434065,0.462737,3,audio,0.540051,False
+mosi,0.500000,dynamic_soft,0.334678,0.334390,0.330932,0.333333,0.333333,0.333333,0.017219,0.521304,0.450496,0.354936,3,text,0.334678,False
+mosi,0.500000,dynamic_soft_moe,0.087076,0.557831,0.355093,0.000992,0.665675,0.333333,0.267983,0.603624,0.431433,0.502641,3,audio,0.557831,False

@@ -1,0 +1,3 @@
+missing,mode,MAE,Corr,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7,MAE_ds,Corr_ds,Non0_acc_2_ds,Non0_F1_score_ds,Mult_acc_5_ds,Mult_acc_7_ds,delta_MAE,delta_Corr,delta_Non0_acc_2,delta_Non0_F1_score,delta_Mult_acc_5,delta_Mult_acc_7
+0.400000,dynamic_task_soft,1.157067,0.543200,0.708867,0.714967,0.314867,0.282800,1.092133,0.552400,0.726633,0.725133,0.320667,0.289133,0.064934,-0.009200,-0.017766,-0.010166,-0.005800,-0.006333
+0.500000,dynamic_task_soft,1.319867,0.390833,0.574700,0.628300,0.223033,0.216733,1.298767,0.378833,0.624000,0.641100,0.215267,0.209933,0.021100,0.012000,-0.049300,-0.012800,0.007766,0.006800

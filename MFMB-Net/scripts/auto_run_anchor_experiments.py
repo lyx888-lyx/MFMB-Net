@@ -25,7 +25,7 @@ METRICS = [
     "Loss",
 ]
 DEFAULT_SEEDS = [111, 1111, 11111]
-SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe"]
+SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft"]
 
 
 @dataclass
@@ -71,6 +71,12 @@ def parse_args():
     parser.add_argument("--eval_drop_last", type=int, default=0)
     parser.add_argument("--test_drop_last", type=int, default=0)
     parser.add_argument("--output_dir", type=str, default="results/auto_anchor_runs")
+    parser.add_argument("--task_router_lambda", type=float, default=0.1)
+    parser.add_argument("--center_aux_lambda", type=float, default=0.05)
+    parser.add_argument("--router_oracle_temperature", type=float, default=0.5)
+    parser.add_argument("--router_oracle_type", type=str, default="soft", choices=["soft", "hard"])
+    parser.add_argument("--export_task_router_info", type=int, default=1)
+    parser.add_argument("--task_router_output_dir", type=str, default="")
     return parser.parse_args()
 
 
@@ -110,7 +116,17 @@ def expected_seed_list(args) -> List[int]:
     return parse_seeds(args.seeds)
 
 
-def mode_to_flags(mode: str, export_anchor_weights: int, router_missing_bias: float) -> Tuple[str, int, List[str]]:
+def mode_to_flags(
+    mode: str,
+    export_anchor_weights: int,
+    router_missing_bias: float,
+    export_task_router_info: int = 0,
+    task_router_lambda: float = 0.1,
+    center_aux_lambda: float = 0.05,
+    router_oracle_temperature: float = 0.5,
+    router_oracle_type: str = "soft",
+    task_router_output_dir: str = "",
+) -> Tuple[str, int, List[str]]:
     if mode == "text":
         return "text", 0, []
     if mode == "audio":
@@ -127,6 +143,22 @@ def mode_to_flags(mode: str, export_anchor_weights: int, router_missing_bias: fl
         if int(export_anchor_weights) == 1:
             flags += ["--export_anchor_weights", "1"]
         return "dynamic_soft", 1, flags
+    if mode == "dynamic_task_soft":
+        flags = [
+            "--router_missing_bias", str(router_missing_bias),
+            "--use_task_aware_router", "1",
+            "--task_router_lambda", str(task_router_lambda),
+            "--center_aux_lambda", str(center_aux_lambda),
+            "--router_oracle_temperature", str(router_oracle_temperature),
+            "--router_oracle_type", str(router_oracle_type),
+        ]
+        if int(export_anchor_weights) == 1:
+            flags += ["--export_anchor_weights", "1"]
+        if int(export_task_router_info) == 1:
+            flags += ["--export_task_router_info", "1"]
+        if task_router_output_dir:
+            flags += ["--task_router_output_dir", task_router_output_dir]
+        return "dynamic_task_soft", 0, flags
     raise ValueError(f"Unsupported mode: {mode}")
 
 
@@ -140,8 +172,24 @@ def make_run_config(
     eval_drop_last: int,
     test_drop_last: int,
     tag: str = "",
+    export_task_router_info: int = 0,
+    task_router_lambda: float = 0.1,
+    center_aux_lambda: float = 0.05,
+    router_oracle_temperature: float = 0.5,
+    router_oracle_type: str = "soft",
+    task_router_output_dir: str = "",
 ) -> RunConfig:
-    center_mode, use_moe, _ = mode_to_flags(mode, export_anchor_weights, router_missing_bias)
+    center_mode, use_moe, _ = mode_to_flags(
+        mode,
+        export_anchor_weights,
+        router_missing_bias,
+        export_task_router_info=export_task_router_info,
+        task_router_lambda=task_router_lambda,
+        center_aux_lambda=center_aux_lambda,
+        router_oracle_temperature=router_oracle_temperature,
+        router_oracle_type=router_oracle_type,
+        task_router_output_dir=task_router_output_dir,
+    )
     return RunConfig(
         dataset=dataset,
         missing=missing,
@@ -165,7 +213,17 @@ def detect_run_help_flags(python_bin: str) -> str:
 
 
 def build_command(cfg: RunConfig, args, seed_list: List[int], run_help_text: str) -> List[str]:
-    _, _, extra_flags = mode_to_flags(cfg.mode, args.export_anchor_weights, args.router_missing_bias)
+    _, _, extra_flags = mode_to_flags(
+        cfg.mode,
+        args.export_anchor_weights,
+        args.router_missing_bias,
+        export_task_router_info=args.export_task_router_info,
+        task_router_lambda=args.task_router_lambda,
+        center_aux_lambda=args.center_aux_lambda,
+        router_oracle_temperature=args.router_oracle_temperature,
+        router_oracle_type=args.router_oracle_type,
+        task_router_output_dir=(args.task_router_output_dir or os.path.join(args.output_dir, "task_router_analysis")),
+    )
     base = shlex.split(args.python_bin) + [
         "run.py",
         "--datasetName", cfg.dataset,
@@ -554,7 +612,7 @@ def analyze_anchor_router(output_dir: str, missing_filter: Optional[List[float]]
         dataset = m.group("dataset") if m else "unknown"
         missing_raw = m.group("missing") if m else "nan"
         mode = m.group("mode") if m else "unknown"
-        if mode not in {"dynamic_soft", "dynamic_soft_moe"}:
+        if mode not in {"dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft"}:
             continue
         seed = m.group("seed") if m else "unknown"
 
@@ -1009,6 +1067,220 @@ def build_router_trend(router_df: pd.DataFrame) -> pd.DataFrame:
     return use[cols].sort_values(["missing", "mode"]).reset_index(drop=True)
 
 
+def _reduce_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    keep = ["missing", "mode", "MAE_mean", "Corr_mean", "Non0_acc_2_mean", "Non0_F1_score_mean", "Mult_acc_5_mean", "Mult_acc_7_mean"]
+    out = df[keep].copy()
+    return out.rename(columns={
+        "MAE_mean": "MAE",
+        "Corr_mean": "Corr",
+        "Non0_acc_2_mean": "Non0_acc_2",
+        "Non0_F1_score_mean": "Non0_F1_score",
+        "Mult_acc_5_mean": "Mult_acc_5",
+        "Mult_acc_7_mean": "Mult_acc_7",
+    })
+
+
+def build_taskrouter_comparisons(task_agg_df: pd.DataFrame, baseline_agg_path: str, out_root: str):
+    def _select_official_rows(df: pd.DataFrame) -> pd.DataFrame:
+        use = df.copy()
+        needed = {"train_drop_last", "eval_drop_last", "test_drop_last"}
+        if needed.issubset(set(use.columns)):
+            off = use[
+                (pd.to_numeric(use["train_drop_last"], errors="coerce") == 1)
+                & (pd.to_numeric(use["eval_drop_last"], errors="coerce") == 0)
+                & (pd.to_numeric(use["test_drop_last"], errors="coerce") == 0)
+            ].copy()
+            if not off.empty:
+                use = off
+        # Always keep only one row per (missing, mode) for stable comparisons.
+        use = use.sort_values(["missing", "mode"]).drop_duplicates(
+            subset=["missing", "mode"], keep="last"
+        )
+        return use.reset_index(drop=True)
+
+    if task_agg_df.empty:
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    if not os.path.exists(baseline_agg_path):
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    miss_keep = {0.3, 0.4, 0.5}
+    task_sub = task_agg_df[
+        (task_agg_df["mode"] == "dynamic_task_soft")
+        & (task_agg_df["missing"].isin(miss_keep))
+    ].copy()
+    task_sub = _select_official_rows(task_sub)
+    if task_sub.empty:
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    base_df = pd.read_csv(baseline_agg_path)
+    base_sub = base_df[
+        base_df["mode"].isin(["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe"])
+        & base_df["missing"].isin(miss_keep)
+    ].copy()
+    base_sub = _select_official_rows(base_sub)
+
+    merged = pd.concat([base_sub, task_sub], ignore_index=True, sort=False)
+    table = _reduce_metrics(merged).sort_values(["missing", "mode"]).drop_duplicates(
+        subset=["missing", "mode"], keep="last"
+    ).reset_index(drop=True)
+    table.to_csv(os.path.join(out_root, "taskrouter_vs_fulltest_baselines.csv"), index=False, float_format="%.6f")
+
+    # delta vs dynamic_soft
+    ds = table[table["mode"] == "dynamic_soft"].rename(columns={
+        "MAE": "MAE_ds",
+        "Corr": "Corr_ds",
+        "Non0_acc_2": "Non0_acc_2_ds",
+        "Non0_F1_score": "Non0_F1_score_ds",
+        "Mult_acc_5": "Mult_acc_5_ds",
+        "Mult_acc_7": "Mult_acc_7_ds",
+    })
+    dt = table[table["mode"] == "dynamic_task_soft"].copy()
+    dvds = dt.merge(ds[["missing", "MAE_ds", "Corr_ds", "Non0_acc_2_ds", "Non0_F1_score_ds", "Mult_acc_5_ds", "Mult_acc_7_ds"]], on="missing", how="left")
+    dvds["delta_MAE"] = dvds["MAE"] - dvds["MAE_ds"]
+    dvds["delta_Corr"] = dvds["Corr"] - dvds["Corr_ds"]
+    dvds["delta_Non0_acc_2"] = dvds["Non0_acc_2"] - dvds["Non0_acc_2_ds"]
+    dvds["delta_Non0_F1_score"] = dvds["Non0_F1_score"] - dvds["Non0_F1_score_ds"]
+    dvds["delta_Mult_acc_5"] = dvds["Mult_acc_5"] - dvds["Mult_acc_5_ds"]
+    dvds["delta_Mult_acc_7"] = dvds["Mult_acc_7"] - dvds["Mult_acc_7_ds"]
+    dvds.to_csv(os.path.join(out_root, "taskrouter_delta_vs_dynamic_soft.csv"), index=False, float_format="%.6f")
+
+    # delta vs best fixed (selected by MAE among text/audio/vision)
+    fixed = table[table["mode"].isin(["text", "audio", "vision"])].copy()
+    best_rows = []
+    for miss in sorted(fixed["missing"].unique()):
+        s = fixed[fixed["missing"] == miss]
+        if s.empty:
+            continue
+        idx = s["MAE"].idxmin()
+        r = s.loc[idx]
+        best_rows.append({
+            "missing": float(miss),
+            "best_fixed_mode": r["mode"],
+            "MAE_fixed": float(r["MAE"]),
+            "Corr_fixed": float(r["Corr"]),
+            "Non0_acc_2_fixed": float(r["Non0_acc_2"]),
+            "Non0_F1_score_fixed": float(r["Non0_F1_score"]),
+            "Mult_acc_5_fixed": float(r["Mult_acc_5"]),
+            "Mult_acc_7_fixed": float(r["Mult_acc_7"]),
+        })
+    best_fixed = pd.DataFrame(best_rows)
+    dvbf = dt.merge(best_fixed, on="missing", how="left")
+    dvbf["delta_MAE"] = dvbf["MAE"] - dvbf["MAE_fixed"]
+    dvbf["delta_Corr"] = dvbf["Corr"] - dvbf["Corr_fixed"]
+    dvbf["delta_Non0_acc_2"] = dvbf["Non0_acc_2"] - dvbf["Non0_acc_2_fixed"]
+    dvbf["delta_Non0_F1_score"] = dvbf["Non0_F1_score"] - dvbf["Non0_F1_score_fixed"]
+    dvbf["delta_Mult_acc_5"] = dvbf["Mult_acc_5"] - dvbf["Mult_acc_5_fixed"]
+    dvbf["delta_Mult_acc_7"] = dvbf["Mult_acc_7"] - dvbf["Mult_acc_7_fixed"]
+    dvbf.to_csv(os.path.join(out_root, "taskrouter_delta_vs_best_fixed.csv"), index=False, float_format="%.6f")
+    return table, dvds, dvbf
+
+
+def analyze_task_router_exports(task_router_dir: str, missing_filter: Optional[List[float]] = None) -> pd.DataFrame:
+    if not task_router_dir:
+        return pd.DataFrame()
+    files = sorted(glob.glob(os.path.join(task_router_dir, "*.csv")))
+    rows = []
+    for p in files:
+        name = os.path.basename(p)
+        if "dynamic_task_soft" not in name:
+            continue
+        try:
+            df = pd.read_csv(p)
+        except Exception:
+            continue
+        need_cols = {
+            "w_text", "w_audio", "w_vision",
+            "oracle_w_text", "oracle_w_audio", "oracle_w_vision",
+            "router_selected_anchor", "oracle_selected_anchor", "router_oracle_match",
+            "availability_text", "availability_audio", "availability_vision",
+        }
+        if not need_cols.issubset(df.columns):
+            continue
+        m = re.search(r"_missing([^_]+)_seed", name)
+        try:
+            miss = float(m.group(1)) if m else np.nan
+        except Exception:
+            miss = np.nan
+        if missing_filter is not None and len(missing_filter) > 0:
+            if np.isnan(miss) or miss not in [float(x) for x in missing_filter]:
+                continue
+
+        wt = pd.to_numeric(df["w_text"], errors="coerce")
+        wa = pd.to_numeric(df["w_audio"], errors="coerce")
+        wv = pd.to_numeric(df["w_vision"], errors="coerce")
+        ot = pd.to_numeric(df["oracle_w_text"], errors="coerce")
+        oa = pd.to_numeric(df["oracle_w_audio"], errors="coerce")
+        ov = pd.to_numeric(df["oracle_w_vision"], errors="coerce")
+        sel = df["router_selected_anchor"].astype(str).str.lower()
+        osl = df["oracle_selected_anchor"].astype(str).str.lower()
+
+        entr_r = -(wt * np.log(wt + 1e-8) + wa * np.log(wa + 1e-8) + wv * np.log(wv + 1e-8))
+        entr_o = -(ot * np.log(ot + 1e-8) + oa * np.log(oa + 1e-8) + ov * np.log(ov + 1e-8))
+        rows.append({
+            "missing": miss,
+            "mode": "dynamic_task_soft",
+            "router_oracle_match_rate": float(pd.to_numeric(df["router_oracle_match"], errors="coerce").mean()),
+            "mean_w_text": float(wt.mean()),
+            "mean_w_audio": float(wa.mean()),
+            "mean_w_vision": float(wv.mean()),
+            "mean_oracle_w_text": float(ot.mean()),
+            "mean_oracle_w_audio": float(oa.mean()),
+            "mean_oracle_w_vision": float(ov.mean()),
+            "selected_text_ratio": float((sel == "text").mean()),
+            "selected_audio_ratio": float((sel == "audio").mean()),
+            "selected_vision_ratio": float((sel == "vision").mean()),
+            "oracle_text_ratio": float((osl == "text").mean()),
+            "oracle_audio_ratio": float((osl == "audio").mean()),
+            "oracle_vision_ratio": float((osl == "vision").mean()),
+            "entropy_router": float(entr_r.mean()),
+            "entropy_oracle": float(entr_o.mean()),
+            "corr_router_oracle_text": safe_corr(wt, ot),
+            "corr_router_oracle_audio": safe_corr(wa, oa),
+            "corr_router_oracle_vision": safe_corr(wv, ov),
+            "corr_availability_text_w_text": safe_corr(pd.to_numeric(df["availability_text"], errors="coerce"), wt),
+            "corr_availability_audio_w_audio": safe_corr(pd.to_numeric(df["availability_audio"], errors="coerce"), wa),
+            "corr_availability_vision_w_vision": safe_corr(pd.to_numeric(df["availability_vision"], errors="coerce"), wv),
+        })
+    if not rows:
+        return pd.DataFrame()
+    out = pd.DataFrame(rows).groupby(["missing", "mode"], as_index=False).mean(numeric_only=True)
+    return out.sort_values(["missing"]).reset_index(drop=True)
+
+
+def generate_taskrouter_report(out_root: str, compare_df: pd.DataFrame, delta_ds_df: pd.DataFrame,
+                               delta_fixed_df: pd.DataFrame, diag_df: pd.DataFrame):
+    p = os.path.join(out_root, "taskrouter_report.md")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("# Task-aware Dynamic Anchor Router Report\n\n")
+        f.write("## 1. Motivation\n")
+        f.write("Missing-aware routing mainly captures modality availability, but availability does not always match task contribution. We add center-wise task supervision to improve router decisions.\n\n")
+        f.write("## 2. Method\n")
+        f.write("- Three auxiliary center predictors (text/audio/vision).\n")
+        f.write("- Oracle center distribution from center-wise prediction error.\n")
+        f.write("- Router supervised by KL/CE against oracle during training.\n")
+        f.write("- Test-time routing does not use labels.\n\n")
+        f.write("## 3. Results\n")
+        f.write(markdown_table(compare_df) + "\n\n")
+        f.write("## 4. Delta Analysis\n")
+        f.write("### dynamic_task_soft vs dynamic_soft\n")
+        f.write(markdown_table(delta_ds_df) + "\n\n")
+        f.write("### dynamic_task_soft vs best fixed center\n")
+        f.write(markdown_table(delta_fixed_df) + "\n\n")
+        f.write("## 5. Router Diagnostics\n")
+        f.write(markdown_table(diag_df) + "\n\n")
+        f.write("## 6. Conclusion\n")
+        if not delta_ds_df.empty:
+            mae_better = int((delta_ds_df["delta_MAE"] < 0).sum())
+            corr_better = int((delta_ds_df["delta_Corr"] > 0).sum())
+            f.write(f"- dynamic_task_soft vs dynamic_soft: MAE better on {mae_better}/{len(delta_ds_df)}, Corr better on {corr_better}/{len(delta_ds_df)}.\n")
+        if not delta_fixed_df.empty:
+            fixed_mae_better = int((delta_fixed_df["delta_MAE"] < 0).sum())
+            f.write(f"- dynamic_task_soft vs best fixed: MAE better on {fixed_mae_better}/{len(delta_fixed_df)}.\n")
+        if not diag_df.empty and "router_oracle_match_rate" in diag_df.columns:
+            f.write(f"- mean router-oracle match rate: {float(diag_df['router_oracle_match_rate'].mean()):.4f}.\n")
+        f.write("- Next step: tune task_router_lambda / center_aux_lambda / oracle temperature for robust gains at high missing rates.\n")
+
+
 def generate_report(out_root: str, args, missing_str: str, modes_str: str,
                     summary_df: pd.DataFrame, agg_df: pd.DataFrame, delta_df: pd.DataFrame,
                     router_df: pd.DataFrame, seed_list: List[int]):
@@ -1233,6 +1505,12 @@ def main():
             make_run_config(
                 args.datasetName, miss, mode, args.export_anchor_weights, args.router_missing_bias,
                 args.train_drop_last, args.eval_drop_last, args.test_drop_last,
+                export_task_router_info=args.export_task_router_info,
+                task_router_lambda=args.task_router_lambda,
+                center_aux_lambda=args.center_aux_lambda,
+                router_oracle_temperature=args.router_oracle_temperature,
+                router_oracle_type=args.router_oracle_type,
+                task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
             )
             for (miss, mode) in quick_plan
             if (miss in missing_list) and (mode in modes)
@@ -1247,6 +1525,12 @@ def main():
                     make_run_config(
                         args.datasetName, miss, "text", args.export_anchor_weights, args.router_missing_bias,
                         args.train_drop_last, eval_drop, test_drop, tag=tag,
+                        export_task_router_info=args.export_task_router_info,
+                        task_router_lambda=args.task_router_lambda,
+                        center_aux_lambda=args.center_aux_lambda,
+                        router_oracle_temperature=args.router_oracle_temperature,
+                        router_oracle_type=args.router_oracle_type,
+                        task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
                     )
                 )
     else:
@@ -1254,6 +1538,12 @@ def main():
             make_run_config(
                 args.datasetName, miss, mode, args.export_anchor_weights, args.router_missing_bias,
                 args.train_drop_last, args.eval_drop_last, args.test_drop_last,
+                export_task_router_info=args.export_task_router_info,
+                task_router_lambda=args.task_router_lambda,
+                center_aux_lambda=args.center_aux_lambda,
+                router_oracle_temperature=args.router_oracle_temperature,
+                router_oracle_type=args.router_oracle_type,
+                task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
             )
             for miss in missing_list
             for mode in modes
@@ -1431,6 +1721,25 @@ def main():
     failed_df.to_csv(failed_path, index=False)
 
     generate_report(out_root, args, missing_str, modes_str, summary_df, agg_df, delta_df, router_df, seed_list)
+
+    # Task-aware router specific analysis (optional, generated when dynamic_task_soft exists).
+    taskrouter_compare = pd.DataFrame()
+    taskrouter_delta_ds = pd.DataFrame()
+    taskrouter_delta_fixed = pd.DataFrame()
+    taskrouter_diag = pd.DataFrame()
+    if (not agg_df.empty) and ("dynamic_task_soft" in set(agg_df["mode"].astype(str).tolist())):
+        baseline_agg_path = os.path.join("results", "auto_anchor_runs_fulltest", "anchor_experiment_agg.csv")
+        taskrouter_compare, taskrouter_delta_ds, taskrouter_delta_fixed = build_taskrouter_comparisons(
+            task_agg_df=agg_df,
+            baseline_agg_path=baseline_agg_path,
+            out_root=out_root,
+        )
+        task_router_dir = args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")
+        taskrouter_diag = analyze_task_router_exports(task_router_dir, missing_filter=missing_list)
+        taskrouter_diag_path = os.path.join(out_root, "task_router_diagnostics.csv")
+        taskrouter_diag.to_csv(taskrouter_diag_path, index=False, float_format="%.6f")
+        generate_taskrouter_report(out_root, taskrouter_compare, taskrouter_delta_ds, taskrouter_delta_fixed, taskrouter_diag)
+
     protocol_csv_path = None
     protocol_md_path = None
     if args.phase == "protocol_check":
@@ -1450,6 +1759,15 @@ def main():
     print("-", paper_best_path)
     print("-", failed_path)
     print("-", os.path.join(out_root, "anchor_experiment_report.md"))
+    if not taskrouter_compare.empty:
+        print("-", os.path.join(out_root, "taskrouter_vs_fulltest_baselines.csv"))
+    if not taskrouter_delta_ds.empty:
+        print("-", os.path.join(out_root, "taskrouter_delta_vs_dynamic_soft.csv"))
+    if not taskrouter_delta_fixed.empty:
+        print("-", os.path.join(out_root, "taskrouter_delta_vs_best_fixed.csv"))
+    if not taskrouter_diag.empty:
+        print("-", os.path.join(out_root, "task_router_diagnostics.csv"))
+        print("-", os.path.join(out_root, "taskrouter_report.md"))
     if protocol_csv_path and protocol_md_path:
         print("-", protocol_csv_path)
         print("-", protocol_md_path)

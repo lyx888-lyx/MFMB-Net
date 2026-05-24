@@ -11,5 +11,7 @@ __pycache__/
 *.ckpt
 *.h5
 
-/results/anchor_weights
-/results/auto_anchor_runs
+# /results/anchor_weights
+# /results/auto_anchor_runs
+# /results/auto_anchor_runs_taskrouter
+# /results/auto_anchor_runs_taskrouter_tune

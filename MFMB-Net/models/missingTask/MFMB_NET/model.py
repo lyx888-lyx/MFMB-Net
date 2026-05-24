@@ -96,7 +96,7 @@ class MFMB_NET(nn.Module):
         self.fusion_subnet = Fusion(args)
         
 
-    def forward(self, text, audio, vision):
+    def forward(self, text, audio, vision, labels=None):
         text, text_m, missing_mask_t = text
     
         audio, audio_m, audio_mask, missing_mask_a = audio
@@ -135,6 +135,7 @@ class MFMB_NET(nn.Module):
                 (text_h, text_mask, missing_mask_t),
                 (audio_h, audio_mask, missing_mask_a),
                 (vision_h, vision_mask, missing_mask_v),
+                labels=labels,
             )
             if isinstance(fusion_out, tuple):
                 prediction, fusion_aux_loss = fusion_out
@@ -155,6 +156,7 @@ class MFMB_NET(nn.Module):
                 (text_h, text_mask, missing_mask_t),
                 (audio_h, audio_mask, missing_mask_a),
                 (vision_h, vision_mask, missing_mask_v),
+                labels=labels,
             )
             if isinstance(fusion_out, tuple):
                 prediction, fusion_aux_loss = fusion_out

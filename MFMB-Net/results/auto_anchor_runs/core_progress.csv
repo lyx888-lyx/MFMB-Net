@@ -1,0 +1,11 @@
+missing,mode,completed_seeds,expected_seeds,status,log_path,need_rerun
+0.0,text,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.0_text_core.log,0
+0.0,audio,0,3,not_started,results/auto_anchor_runs/logs/mosi_missing0.0_audio_core.log,1
+0.0,vision,0,3,not_started,results/auto_anchor_runs/logs/mosi_missing0.0_vision_core.log,1
+0.0,dynamic_soft,0,3,not_started,results/auto_anchor_runs/logs/mosi_missing0.0_dynamic_soft_core.log,1
+0.0,dynamic_soft_moe,0,3,not_started,results/auto_anchor_runs/logs/mosi_missing0.0_dynamic_soft_moe_core.log,1
+0.3,text,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.3_text_core.log,0
+0.3,audio,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.3_audio_core.log,0
+0.3,vision,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.3_vision_core.log,0
+0.3,dynamic_soft,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.3_dynamic_soft_core.log,0
+0.3,dynamic_soft_moe,3,3,completed,results/auto_anchor_runs/logs/mosi_missing0.3_dynamic_soft_moe_core.log,0

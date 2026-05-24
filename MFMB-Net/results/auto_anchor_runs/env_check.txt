@@ -1,0 +1,57 @@
+=== ENV CHECK START ===
+2026-05-21 13:21:01 UTC
+PWD:
+/code/MFMB-Net/MFMB-Net
+
+python --version:
+Python 3.9.19
+
+which python:
+/usr/miniconda3/bin/python
+
+nvidia-smi:
+Thu May 21 13:21:01 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.172.08             Driver Version: 570.172.08     CUDA Version: 12.8     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 2080 Ti     Off |   00000000:01:00.0  On |                  N/A |
+| 27%   35C    P8              4W /  250W |     390MiB /  22528MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
++-----------------------------------------------------------------------------------------+
+
+pip show torch:
+=== ENV CHECK END ===
+=== CONDA ENVS ===
+# conda environments:
+#
+base                  *  /usr/miniconda3
+mfmb                     /usr/miniconda3/envs/mfmb
+
+
+=== TRY conda run -n mfmb python --version ===
+Python 3.10.20
+
+
+=== TRY conda run -n mfmb pip show torch ===
+Name: torch
+Version: 2.4.0+cu121
+Summary: Tensors and Dynamic neural networks in Python with strong GPU acceleration
+Home-page: https://pytorch.org/
+Author: PyTorch Team
+Author-email: packages@pytorch.org
+License: BSD-3
+Location: /usr/miniconda3/envs/mfmb/lib/python3.10/site-packages
+Requires: filelock, fsspec, jinja2, networkx, nvidia-cublas-cu12, nvidia-cuda-cupti-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-runtime-cu12, nvidia-cudnn-cu12, nvidia-cufft-cu12, nvidia-curand-cu12, nvidia-cusolver-cu12, nvidia-cusparse-cu12, nvidia-nccl-cu12, nvidia-nvtx-cu12, sympy, triton, typing-extensions
+Required-by: torchaudio, torchvision
+

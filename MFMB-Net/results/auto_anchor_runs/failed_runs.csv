@@ -1,0 +1,2 @@
+dataset,missing,mode,phase,status,reason,log_path,command
+mosi,0.0,audio,core,failed,no_test_metrics,results/auto_anchor_runs/logs/mosi_missing0.0_audio_core.log,

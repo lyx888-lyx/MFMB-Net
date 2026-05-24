@@ -19,5 +19,5 @@ class AMIO(nn.Module):
         lastModel = MODEL_MAP[args.modelName]
         self.Model = lastModel(args)
 
-    def forward(self, text_x, audio_x, video_x):
-        return self.Model(text_x, audio_x, video_x)
+    def forward(self, text_x, audio_x, video_x, labels=None):
+        return self.Model(text_x, audio_x, video_x, labels=labels)

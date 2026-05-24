@@ -225,6 +225,12 @@ class GATE_F(nn.Module):
         self.router_missing_bias = float(getattr(args, 'router_missing_bias', 2.0))
         self.router_use_missing = bool(getattr(args, 'router_use_missing', 1))
         self.router_balance_lambda = float(getattr(args, 'router_balance_lambda', 0.0))
+        self.use_task_aware_router = bool(getattr(args, 'use_task_aware_router', 0))
+        self.task_router_lambda = float(getattr(args, 'task_router_lambda', 0.1))
+        self.center_aux_lambda = float(getattr(args, 'center_aux_lambda', 0.05))
+        self.router_oracle_temperature = float(getattr(args, 'router_oracle_temperature', 0.5))
+        self.router_oracle_type = str(getattr(args, 'router_oracle_type', 'soft')).lower()
+        self.router_task_detach_oracle = bool(getattr(args, 'router_task_detach_oracle', 1))
 
         self.text_encoder = C_GATE(args.fusion_t_in, args.fusion_t_hid, args.fusion_gru_layers, args.fusion_drop)
         self.audio_encoder = C_GATE(args.fusion_a_in, args.fusion_a_hid, args.fusion_gru_layers, args.fusion_drop)
@@ -280,6 +286,12 @@ class GATE_F(nn.Module):
             self.expert_t = self._build_expert_head(full_in_dim, expert_hidden, args.cls_dropout)
             self.expert_a = self._build_expert_head(full_in_dim, expert_hidden, args.cls_dropout)
             self.expert_v = self._build_expert_head(full_in_dim, expert_hidden, args.cls_dropout)
+
+        # Task-aware router auxiliary center heads (used by dynamic_task_soft only).
+        aux_hidden = max(args.cls_hidden_dim // 2, 16)
+        self.center_aux_text = self._build_expert_head(full_in_dim, aux_hidden, args.cls_dropout)
+        self.center_aux_audio = self._build_expert_head(full_in_dim, aux_hidden, args.cls_dropout)
+        self.center_aux_vision = self._build_expert_head(full_in_dim, aux_hidden, args.cls_dropout)
 
         self.last_router_info = {}
 
@@ -380,7 +392,7 @@ class GATE_F(nn.Module):
 
         return audio_proj.permute(2, 0, 1), vision_proj.permute(2, 0, 1)
 
-    def forward(self, text_x, audio_x, vision_x):
+    def forward(self, text_x, audio_x, vision_x, labels=None):
         # tuple includes observed mask in missing-data mode.
         if len(text_x) == 3:
             text_x, text_mask, text_observed_mask = text_x
@@ -418,7 +430,7 @@ class GATE_F(nn.Module):
         h_audio_center = self._build_center_micro('audio', text_rep_common, audio_rep_common, vision_rep_common)
         h_vision_center = self._build_center_micro('vision', text_rep_common, audio_rep_common, vision_rep_common)
 
-        _, router_weights, availability = self._resolve_router_weights(
+        router_logits, router_weights, availability = self._resolve_router_weights(
             text_rep_common,
             audio_rep_common,
             vision_rep_common,
@@ -435,11 +447,25 @@ class GATE_F(nn.Module):
         micro_stack = torch.stack([h_text_center, h_audio_center, h_vision_center], dim=1)
         weighted_micro = torch.sum(router_weights.unsqueeze(-1) * micro_stack, dim=1)
 
-        if self.use_anchor_moe:
+        center_mode = self.fusion_center_mode
+        feat_base = [text_rep, audio_rep, vision_rep]
+        feat_t = torch.cat(feat_base + [h_text_center, audio_visual_fusion], dim=1)
+        feat_a = torch.cat(feat_base + [h_audio_center, audio_visual_fusion], dim=1)
+        feat_v = torch.cat(feat_base + [h_vision_center, audio_visual_fusion], dim=1)
+
+        pred_t = pred_a = pred_v = None
+        if center_mode == 'dynamic_task_soft':
+            # Center-specific auxiliary predictions are used to build task-aware router supervision.
+            pred_t = self.center_aux_text(feat_t)
+            pred_a = self.center_aux_audio(feat_a)
+            pred_v = self.center_aux_vision(feat_v)
+            utterance_rep = torch.cat(
+                (text_rep, audio_rep, vision_rep, weighted_micro, audio_visual_fusion),
+                dim=1,
+            )
+            pred = self.classifier2(utterance_rep)
+        elif self.use_anchor_moe:
             feat_base = [text_rep, audio_rep, vision_rep]
-            feat_t = torch.cat(feat_base + [h_text_center, audio_visual_fusion], dim=1)
-            feat_a = torch.cat(feat_base + [h_audio_center, audio_visual_fusion], dim=1)
-            feat_v = torch.cat(feat_base + [h_vision_center, audio_visual_fusion], dim=1)
 
             pred_t = self.expert_t(feat_t)
             pred_a = self.expert_a(feat_a)
@@ -455,15 +481,77 @@ class GATE_F(nn.Module):
 
         selected_idx = torch.argmax(router_weights, dim=-1)
 
+        task_aux_loss = torch.tensor(0.0, device=pred.device)
+        center_aux_loss = torch.tensor(0.0, device=pred.device)
+        router_task_loss = torch.tensor(0.0, device=pred.device)
+        oracle_weight = None
+        oracle_label = None
+        center_err = None
+
+        # Task-aware router supervision is train-only and must not use labels at inference time.
+        if (
+            center_mode == 'dynamic_task_soft'
+            and self.use_task_aware_router
+            and self.training
+            and labels is not None
+            and pred_t is not None
+            and router_logits is not None
+        ):
+            y = labels
+            if y.dim() == 1:
+                y = y.unsqueeze(-1)
+            y = y.to(pred.device)
+
+            center_aux_loss = (
+                F.smooth_l1_loss(pred_t, y)
+                + F.smooth_l1_loss(pred_a, y)
+                + F.smooth_l1_loss(pred_v, y)
+            ) / 3.0
+
+            center_err = torch.cat([
+                torch.abs(pred_t - y),
+                torch.abs(pred_a - y),
+                torch.abs(pred_v - y),
+            ], dim=1)
+            err_for_oracle = center_err.detach() if self.router_task_detach_oracle else center_err
+
+            if self.router_oracle_type == 'hard':
+                oracle_label = torch.argmin(err_for_oracle, dim=-1)
+                router_task_loss = F.cross_entropy(router_logits, oracle_label)
+                oracle_weight = F.one_hot(oracle_label, num_classes=3).float()
+            else:
+                oracle_weight = torch.softmax(
+                    -err_for_oracle / max(self.router_oracle_temperature, 1e-6),
+                    dim=-1,
+                )
+                router_task_loss = F.kl_div(
+                    torch.log(router_weights + 1e-8),
+                    oracle_weight,
+                    reduction='batchmean',
+                )
+
+            task_aux_loss = self.center_aux_lambda * center_aux_loss + self.task_router_lambda * router_task_loss
+
         self.last_router_info = {
             'router_weights': router_weights.detach(),
+            'router_logits': router_logits.detach() if router_logits is not None else None,
             'availability': availability.detach(),
             'selected_anchor_idx': selected_idx.detach(),
+            'pred_text_center': pred_t.detach() if pred_t is not None else None,
+            'pred_audio_center': pred_a.detach() if pred_a is not None else None,
+            'pred_vision_center': pred_v.detach() if pred_v is not None else None,
+            'center_err': center_err.detach() if center_err is not None else None,
+            'oracle_weight': oracle_weight.detach() if oracle_weight is not None else None,
+            'oracle_label': oracle_label.detach() if oracle_label is not None else None,
         }
 
-        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard']:
+        aux_total = task_aux_loss
+        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard', 'dynamic_task_soft']:
             balance_loss = self._router_balance_loss(router_weights)
-            return pred, self.router_balance_lambda * balance_loss
+            aux_total = aux_total + self.router_balance_lambda * balance_loss
+
+        if self.fusion_center_mode == 'dynamic_task_soft' or aux_total.abs().item() > 0:
+            return pred, aux_total
         return pred
 
 
@@ -479,5 +567,5 @@ class Fusion(nn.Module):
         select_model = MODULE_MAP[args.fusionModule]
         self.Model = select_model(args)
 
-    def forward(self, text_x, audio_x, vision_x):
-        return self.Model(text_x, audio_x, vision_x)
+    def forward(self, text_x, audio_x, vision_x, labels=None):
+        return self.Model(text_x, audio_x, vision_x, labels=labels)

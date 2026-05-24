@@ -1,0 +1,9 @@
+dataset,phase,missing,mode,train_drop_last,eval_drop_last,test_drop_last,MAE_mean,MAE_std,Corr_mean,Corr_std,Non0_acc_2_mean,Non0_acc_2_std,Non0_F1_score_mean,Non0_F1_score_std,Mult_acc_5_mean,Mult_acc_5_std,Mult_acc_7_mean,Mult_acc_7_std,effective_test_samples
+mosi,protocol_check,0.000000,text,1,0,0,0.806800,,0.793300,,0.827700,,0.826700,,0.475200,,0.421300,,686.000000
+mosi,protocol_check,0.000000,text,1,1,1,0.805600,,0.793000,,0.824500,,0.823200,,0.479200,,0.427100,,672.000000
+mosi,protocol_check,0.300000,text,1,0,0,1.105600,,0.625800,,0.708800,,0.711400,,0.341100,,0.312000,,686.000000
+mosi,protocol_check,0.300000,text,1,1,1,1.097800,,0.580100,,0.715000,,0.713600,,0.352700,,0.296100,,672.000000
+mosi,protocol_check,0.400000,text,1,0,0,1.096200,,0.570200,,0.714900,,0.713300,,0.309000,,0.285700,,686.000000
+mosi,protocol_check,0.400000,text,1,1,1,1.098900,,0.566800,,0.711800,,0.710000,,0.311000,,0.288700,,672.000000
+mosi,protocol_check,0.500000,text,1,0,0,1.229200,,0.460300,,0.676800,,0.678200,,0.237600,,0.231800,,686.000000
+mosi,protocol_check,0.500000,text,1,1,1,1.276500,,0.454000,,0.645400,,0.647800,,0.250000,,0.232100,,672.000000

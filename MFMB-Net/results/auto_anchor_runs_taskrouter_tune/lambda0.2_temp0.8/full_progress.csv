@@ -1,0 +1,3 @@
+missing,mode,completed_seeds,expected_seeds,status,need_rerun,source_phase,log_path
+0.4,dynamic_task_soft,3,3,completed,0,full,results/auto_anchor_runs_taskrouter_tune/lambda0.2_temp0.8/logs/mosi_missing0.4_dynamic_task_soft_full.log
+0.5,dynamic_task_soft,3,3,completed,0,full,results/auto_anchor_runs_taskrouter_tune/lambda0.2_temp0.8/logs/mosi_missing0.5_dynamic_task_soft_full.log

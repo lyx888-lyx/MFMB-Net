@@ -1,0 +1,4 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.300000,dynamic_task_soft,1.015633,dynamic_task_soft,0.620600,dynamic_task_soft,0.748500,dynamic_task_soft,0.747700
+0.400000,dynamic_task_soft,1.160333,dynamic_task_soft,0.540100,dynamic_task_soft,0.710367,dynamic_task_soft,0.711433
+0.500000,dynamic_task_soft,1.242400,dynamic_task_soft,0.449867,dynamic_task_soft,0.667667,dynamic_task_soft,0.671433

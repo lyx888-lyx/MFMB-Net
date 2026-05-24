@@ -1,0 +1,4 @@
+missing,mode,completed_seeds,expected_seeds,status,need_rerun,source_phase,log_path
+0.3,dynamic_task_soft,3,3,completed,0,full,results/auto_anchor_runs_taskrouter/logs/mosi_missing0.3_dynamic_task_soft_full.log
+0.4,dynamic_task_soft,3,3,completed,0,full,results/auto_anchor_runs_taskrouter/logs/mosi_missing0.4_dynamic_task_soft_full.log
+0.5,dynamic_task_soft,3,3,completed,0,full,results/auto_anchor_runs_taskrouter/logs/mosi_missing0.5_dynamic_task_soft_full.log

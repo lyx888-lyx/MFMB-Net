@@ -1,0 +1,25 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{Tuned task-aware router vs full-test baselines. Best per missing in \textbf{bold}, second in \underline{underline}.}
+\begin{tabular}{cc|cccccc}
+\toprule
+missing & method & MAE & Corr & Non0\_acc\_2 & Non0\_F1 & Mult\_acc\_5 & Mult\_acc\_7 \\
+\midrule
+0.4 & text & 1.1059 & \underline{0.5497} & 0.7053 & 0.7045 & \underline{0.3144} & 0.2808 \\
+0.4 & audio & 1.1347 & 0.5334 & 0.7114 & 0.7102 & 0.2877 & 0.2629 \\
+0.4 & vision & 1.2219 & 0.5241 & 0.7022 & 0.7049 & 0.2464 & 0.2327 \\
+0.4 & dynamic\_soft & \underline{1.0921} & \textbf{0.5524} & \textbf{0.7266} & \textbf{0.7251} & \textbf{0.3207} & \underline{0.2891} \\
+0.4 & dynamic\_soft\_moe & 1.1596 & 0.5264 & 0.7144 & 0.7211 & 0.3110 & 0.2697 \\
+0.4 & dynamic\_task\_soft\_original (0.1,0.5) & 1.1603 & 0.5401 & 0.7104 & 0.7114 & 0.2862 & 0.2672 \\
+0.4 & dynamic\_task\_soft\_tuned (0.10,0.8) & \textbf{1.0896} & 0.5194 & \underline{0.7256} & \underline{0.7248} & 0.3100 & \textbf{0.2920} \\
+0.5 & text & 1.2593 & \underline{0.4647} & 0.6626 & 0.6668 & 0.2449 & 0.2289 \\
+0.5 & audio & 1.2776 & 0.4560 & 0.6458 & 0.6526 & \underline{0.2638} & \underline{0.2435} \\
+0.5 & vision & 1.2494 & 0.4619 & \underline{0.6707} & \underline{0.6763} & \textbf{0.3008} & \textbf{0.2716} \\
+0.5 & dynamic\_soft & 1.2988 & 0.3788 & 0.6240 & 0.6411 & 0.2153 & 0.2099 \\
+0.5 & dynamic\_soft\_moe & 1.3486 & 0.4490 & 0.6123 & 0.6578 & 0.2532 & 0.2410 \\
+0.5 & dynamic\_task\_soft\_original (0.1,0.5) & \underline{1.2424} & 0.4499 & 0.6677 & 0.6714 & 0.2279 & 0.2211 \\
+0.5 & dynamic\_task\_soft\_tuned (0.10,0.8) & \textbf{1.2121} & \textbf{0.4663} & \textbf{0.6855} & \textbf{0.6861} & 0.2575 & 0.2410 \\
+\bottomrule
+\end{tabular}
+\end{table*}

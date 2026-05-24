@@ -185,6 +185,15 @@ class ConfigRegression():
                 'router_use_missing': 1,
                 'router_balance_lambda': 0.0,
                 'export_anchor_weights': 0,
+                # Task-aware dynamic anchor router options
+                'use_task_aware_router': 0,
+                'task_router_lambda': 0.1,
+                'center_aux_lambda': 0.05,
+                'router_oracle_temperature': 0.5,
+                'router_oracle_type': 'soft',
+                'router_task_detach_oracle': 1,
+                'export_task_router_info': 0,
+                'task_router_output_dir': 'results/task_router_analysis',
             },
             # dataset
             'datasetParas':{

@@ -1,0 +1,9 @@
+missing,mode,eval_drop_last,test_drop_last,completed_seeds,expected_seeds,status,need_rerun,log_path
+0.0,text,0,0,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.0_text_eval0_test0_protocol_check.log
+0.0,text,1,1,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.0_text_eval1_test1_protocol_check.log
+0.3,text,0,0,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.3_text_eval0_test0_protocol_check.log
+0.3,text,1,1,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.3_text_eval1_test1_protocol_check.log
+0.4,text,0,0,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.4_text_eval0_test0_protocol_check.log
+0.4,text,1,1,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.4_text_eval1_test1_protocol_check.log
+0.5,text,0,0,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.5_text_eval0_test0_protocol_check.log
+0.5,text,1,1,1,1,success,0,results/auto_anchor_runs/logs/mosi_missing0.5_text_eval1_test1_protocol_check.log

@@ -1,0 +1,5 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.000000,text,0.775800,text,0.787567,text,0.835300,text,0.834800
+0.300000,vision,0.967333,vision,0.627367,vision,0.768667,vision,0.772333
+0.400000,dynamic_soft,1.069033,dynamic_soft,0.557033,dynamic_soft,0.732333,dynamic_soft,0.730867
+0.500000,vision,1.272333,vision,0.471133,vision,0.657533,vision,0.664067

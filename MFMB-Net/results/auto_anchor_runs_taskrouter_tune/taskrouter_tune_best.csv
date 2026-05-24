@@ -1,0 +1,6 @@
+selection,task_router_lambda,router_oracle_temperature,center_aux_lambda,MAE,Corr,router_oracle_match_rate,note
+best_mae_missing_0.4,0.100000,0.800000,0.050000,1.089600,0.519400,0.369776,lowest MAE on this missing
+best_mae_missing_0.5,0.200000,0.500000,0.050000,1.166833,0.467033,0.350340,lowest MAE on this missing
+best_avg_mae_04_05,0.100000,0.800000,0.050000,1.150866,0.492833,0.324829,"lowest average MAE over missing=0.4,0.5"
+best_avg_corr_04_05,0.200000,0.500000,0.050000,1.156516,0.506233,0.358843,"highest average Corr over missing=0.4,0.5"
+recommended,0.100000,0.800000,0.050000,1.150866,0.492833,0.324829,balanced rule: avg MAE + high-missing robustness + router match
