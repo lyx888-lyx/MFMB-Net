@@ -1,1 +1,6 @@
 missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.100000,dynamic_rta,0.950433,dynamic_rta,0.720900,dynamic_rta,0.812000,dynamic_rta,0.811867
+0.200000,dynamic_rta,0.949700,dynamic_rta,0.654633,dynamic_rta,0.775400,dynamic_rta,0.776000
+0.300000,dynamic_rta,1.109267,dynamic_rta,0.584667,dynamic_rta,0.721567,dynamic_rta,0.728367
+0.400000,dynamic_rta,1.180300,dynamic_rta,0.541400,dynamic_rta,0.695100,dynamic_rta,0.704300
+0.500000,dynamic_rta,1.188600,dynamic_rta,0.459033,dynamic_rta,0.686500,dynamic_rta,0.686800

@@ -29,7 +29,13 @@ This official full-test protocol uses train_drop_last=1, eval_drop_last=0, and t
 
 ## 3. Overall Results
 
-(empty)
+| phase | missing | mode | MAE | Corr | Non0_acc_2 | Non0_F1_score | Mult_acc_5 | Mult_acc_7 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| full | 0.1 | dynamic_rta | 0.950433 ± 0.096642 | 0.720900 ± 0.020603 | 0.812000 ± 0.015290 | 0.811867 ± 0.015821 | 0.372233 ± 0.099151 | 0.335767 ± 0.064652 |
+| full | 0.2 | dynamic_rta | 0.949700 ± 0.051546 | 0.654633 ± 0.030238 | 0.775400 ± 0.020781 | 0.776000 ± 0.024020 | 0.393600 ± 0.023485 | 0.356633 ± 0.015305 |
+| full | 0.3 | dynamic_rta | 1.109267 ± 0.142901 | 0.584667 ± 0.038827 | 0.721567 ± 0.071274 | 0.728367 ± 0.063852 | 0.299333 ± 0.082524 | 0.267233 ± 0.053508 |
+| full | 0.4 | dynamic_rta | 1.180300 ± 0.010422 | 0.541400 ± 0.028650 | 0.695100 ± 0.015037 | 0.704300 ± 0.014686 | 0.248300 ± 0.006077 | 0.236633 ± 0.006561 |
+| full | 0.5 | dynamic_rta | 1.188600 ± 0.038676 | 0.459033 ± 0.009905 | 0.686500 ± 0.022863 | 0.686800 ± 0.024422 | 0.288633 ± 0.010512 | 0.267267 ± 0.002237 |
 
 ## 4. Delta vs Fixed Text Baseline
 
@@ -41,7 +47,35 @@ This official full-test protocol uses train_drop_last=1, eval_drop_last=0, and t
 
 ## 5. Best Method by Missing Rate
 
-No complete aggregated results available.
+missing=0.1:
+- Best MAE: dynamic_rta
+- Best Corr: dynamic_rta
+- Best Non0_acc_2: dynamic_rta
+- Best Non0_F1_score: dynamic_rta
+
+missing=0.2:
+- Best MAE: dynamic_rta
+- Best Corr: dynamic_rta
+- Best Non0_acc_2: dynamic_rta
+- Best Non0_F1_score: dynamic_rta
+
+missing=0.3:
+- Best MAE: dynamic_rta
+- Best Corr: dynamic_rta
+- Best Non0_acc_2: dynamic_rta
+- Best Non0_F1_score: dynamic_rta
+
+missing=0.4:
+- Best MAE: dynamic_rta
+- Best Corr: dynamic_rta
+- Best Non0_acc_2: dynamic_rta
+- Best Non0_F1_score: dynamic_rta
+
+missing=0.5:
+- Best MAE: dynamic_rta
+- Best Corr: dynamic_rta
+- Best Non0_acc_2: dynamic_rta
+- Best Non0_F1_score: dynamic_rta
 
 ## 6. Dynamic Anchor vs Fixed Text
 

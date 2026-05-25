@@ -1,0 +1,33 @@
+diff --git a/MFMB-Net/config/config_regression.py b/MFMB-Net/config/config_regression.py
+index 83c874f..514ecdf 100644
+--- a/MFMB-Net/config/config_regression.py
++++ b/MFMB-Net/config/config_regression.py
+@@ -38,7 +38,7 @@ class ConfigRegression():
+         self.args = Storage(merged)
+     
+     def __datasetCommonParams(self):
+-        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
++        root_dataset_dir = '/rivermind-data/MMSA/Datasets'
+         tmp = {
+             'mosi':{
+                 'aligned': {
+diff --git a/MFMB-Net/models/subNets/BertTextEncoder.py b/MFMB-Net/models/subNets/BertTextEncoder.py
+index 6ea36e5..df42ddf 100644
+--- a/MFMB-Net/models/subNets/BertTextEncoder.py
++++ b/MFMB-Net/models/subNets/BertTextEncoder.py
+@@ -24,11 +24,11 @@ class BertTextEncoder(nn.Module):
+         # directory is fine
+         # pretrained_weights = '/home/sharing/disk3/pretrained_embedding/Chinese/bert/pytorch'
+         if language == 'en':
+-            self.tokenizer = tokenizer_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_en', do_lower_case=True)
+-            self.model = model_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_en')
++            self.tokenizer = tokenizer_class.from_pretrained('/rivermind-data/MMSA/pretrained_berts/bert_en', do_lower_case=True)
++            self.model = model_class.from_pretrained('/rivermind-data/MMSA/pretrained_berts/bert_en')
+         elif language == 'cn':
+-            self.tokenizer = tokenizer_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_cn')
+-            self.model = model_class.from_pretrained('/sharefile/lyx_model/MMSA/pretrained_berts/bert_cn')
++            self.tokenizer = tokenizer_class.from_pretrained('/rivermind-data/MMSA/pretrained_berts/bert_cn')
++            self.model = model_class.from_pretrained('/rivermind-data/MMSA/pretrained_berts/bert_cn')
+         
+         self.use_finetune = use_finetune
+     

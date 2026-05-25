@@ -1,6 +1,6 @@
 missing,mode,completed_seeds,expected_seeds,status,need_rerun,source_phase,log_path
-0.1,dynamic_rta,0,3,incomplete,1,,results/auto_anchor_runs_rta/logs/mosi_missing0.1_dynamic_rta_full.log
-0.2,dynamic_rta,0,3,incomplete,1,,results/auto_anchor_runs_rta/logs/mosi_missing0.2_dynamic_rta_full.log
-0.3,dynamic_rta,0,3,incomplete,1,,results/auto_anchor_runs_rta/logs/mosi_missing0.3_dynamic_rta_full.log
-0.4,dynamic_rta,0,3,incomplete,1,,results/auto_anchor_runs_rta/logs/mosi_missing0.4_dynamic_rta_full.log
-0.5,dynamic_rta,0,3,incomplete,1,,results/auto_anchor_runs_rta/logs/mosi_missing0.5_dynamic_rta_full.log
+0.1,dynamic_rta,3,3,completed,0,full,results/auto_anchor_runs_rta/logs/mosi_missing0.1_dynamic_rta_full.log
+0.2,dynamic_rta,3,3,completed,0,full,results/auto_anchor_runs_rta/logs/mosi_missing0.2_dynamic_rta_full.log
+0.3,dynamic_rta,3,3,completed,0,full,results/auto_anchor_runs_rta/logs/mosi_missing0.3_dynamic_rta_full.log
+0.4,dynamic_rta,3,3,completed,0,full,results/auto_anchor_runs_rta/logs/mosi_missing0.4_dynamic_rta_full.log
+0.5,dynamic_rta,3,3,completed,0,full,results/auto_anchor_runs_rta/logs/mosi_missing0.5_dynamic_rta_full.log

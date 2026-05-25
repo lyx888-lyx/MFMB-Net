@@ -1,1 +1,6 @@
-missing,text_MAE,audio_MAE,vision_MAE,dynamic_soft_MAE,dynamic_soft_moe_MAE,text_Corr,audio_Corr,vision_Corr,dynamic_soft_Corr,dynamic_soft_moe_Corr,text_Non0_acc_2,audio_Non0_acc_2,vision_Non0_acc_2,dynamic_soft_Non0_acc_2,dynamic_soft_moe_Non0_acc_2,text_Non0_F1_score,audio_Non0_F1_score,vision_Non0_F1_score,dynamic_soft_Non0_F1_score,dynamic_soft_moe_Non0_F1_score
+missing,text_MAE,text_Corr,text_Non0_acc_2,text_Non0_F1_score,audio_MAE,audio_Corr,audio_Non0_acc_2,audio_Non0_F1_score,vision_MAE,vision_Corr,vision_Non0_acc_2,vision_Non0_F1_score,dynamic_soft_MAE,dynamic_soft_Corr,dynamic_soft_Non0_acc_2,dynamic_soft_Non0_F1_score,dynamic_soft_moe_MAE,dynamic_soft_moe_Corr,dynamic_soft_moe_Non0_acc_2,dynamic_soft_moe_Non0_F1_score,dynamic_task_soft_MAE,dynamic_task_soft_Corr,dynamic_task_soft_Non0_acc_2,dynamic_task_soft_Non0_F1_score,dynamic_rta_MAE,dynamic_rta_Corr,dynamic_rta_Non0_acc_2,dynamic_rta_Non0_F1_score
+0.100000,,,,,,,,,,,,,,,,,,,,,,,,,0.950433,0.720900,0.812000,0.811867
+0.200000,,,,,,,,,,,,,,,,,,,,,,,,,0.949700,0.654633,0.775400,0.776000
+0.300000,,,,,,,,,,,,,,,,,,,,,,,,,1.109267,0.584667,0.721567,0.728367
+0.400000,,,,,,,,,,,,,,,,,,,,,,,,,1.180300,0.541400,0.695100,0.704300
+0.500000,,,,,,,,,,,,,,,,,,,,,,,,,1.188600,0.459033,0.686500,0.686800

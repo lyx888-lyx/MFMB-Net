@@ -38,7 +38,7 @@ class ConfigRegression():
         self.args = Storage(merged)
     
     def __datasetCommonParams(self):
-        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
+        root_dataset_dir = '/root/rivermind-data/MMSA/Datasets'
         tmp = {
             'mosi':{
                 'aligned': {
