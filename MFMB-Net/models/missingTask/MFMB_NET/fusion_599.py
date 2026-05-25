@@ -214,6 +214,28 @@ class ReliabilityAnchorRouter(nn.Module):
         return logits, weights, availability
 
 
+class ReliabilityTaskGate(nn.Module):
+    """Sample-level gate to fuse reliability-aware and task-aware routes."""
+
+    def __init__(self, input_dim, hidden_dim=32, dropout=0.1, init_bias=0.0):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+        # Bias controls initial preference:
+        # <0 prefers reliability route, >0 prefers task-aware route.
+        with torch.no_grad():
+            self.net[-1].bias.fill_(float(init_bias))
+
+    def forward(self, gate_input):
+        gate_logit = self.net(gate_input)
+        gate_task = torch.sigmoid(gate_logit)
+        return gate_logit, gate_task
+
+
 class GATE_F(nn.Module):
     def __init__(self, args):
         super(GATE_F, self).__init__()
@@ -231,6 +253,9 @@ class GATE_F(nn.Module):
         self.router_oracle_temperature = float(getattr(args, 'router_oracle_temperature', 0.5))
         self.router_oracle_type = str(getattr(args, 'router_oracle_type', 'soft')).lower()
         self.router_task_detach_oracle = bool(getattr(args, 'router_task_detach_oracle', 1))
+        self.use_reliability_task_gate = bool(getattr(args, 'use_reliability_task_gate', 0))
+        self.gate_balance_lambda = float(getattr(args, 'gate_balance_lambda', 0.0))
+        self.gate_target = float(getattr(args, 'gate_target', 0.5))
 
         self.text_encoder = C_GATE(args.fusion_t_in, args.fusion_t_hid, args.fusion_gru_layers, args.fusion_drop)
         self.audio_encoder = C_GATE(args.fusion_a_in, args.fusion_a_hid, args.fusion_gru_layers, args.fusion_drop)
@@ -263,6 +288,21 @@ class GATE_F(nn.Module):
             common_size=self.common_size,
             hidden_dim=int(getattr(args, 'router_hidden_dim', 64)),
             dropout=float(getattr(args, 'router_dropout', 0.1)),
+        )
+        # Separate task-aware router for dynamic_rta so task supervision does not
+        # overwrite the pure reliability-aware routing behavior.
+        self.task_anchor_router = ReliabilityAnchorRouter(
+            common_size=self.common_size,
+            hidden_dim=int(getattr(args, 'router_hidden_dim', 64)),
+            dropout=float(getattr(args, 'router_dropout', 0.1)),
+        )
+        # gate_input = availability(3) + entropies(2) + max_conf(2)
+        #            + disagreement(1) + pred_std/pred_range(2)
+        self.reliability_task_gate = ReliabilityTaskGate(
+            input_dim=10,
+            hidden_dim=int(getattr(args, 'gate_hidden_dim', 32)),
+            dropout=float(getattr(args, 'gate_dropout', 0.1)),
+            init_bias=float(getattr(args, 'gate_init_bias', 0.0)),
         )
 
         self.classifier1 = nn.Sequential()
@@ -375,11 +415,82 @@ class GATE_F(nn.Module):
             return logits, hard_weights, availability
         return logits, soft_weights, availability
 
+    def _resolve_task_router_weights(
+        self,
+        t_common,
+        a_common,
+        v_common,
+        text_mask,
+        audio_mask,
+        vision_mask,
+        text_observed_mask,
+        audio_observed_mask,
+        vision_observed_mask,
+    ):
+        return self.task_anchor_router(
+            text_rep_common=t_common,
+            audio_rep_common=a_common,
+            vision_rep_common=v_common,
+            text_mask=text_mask,
+            audio_mask=audio_mask,
+            vision_mask=vision_mask,
+            text_observed_mask=text_observed_mask,
+            audio_observed_mask=audio_observed_mask,
+            vision_observed_mask=vision_observed_mask,
+            temperature=self.router_temperature,
+            missing_bias=self.router_missing_bias,
+            use_missing=self.router_use_missing,
+        )
+
     @staticmethod
     def _router_balance_loss(router_weights):
         eps = 1e-8
         avg_w = router_weights.mean(dim=0)
         return torch.sum(avg_w * torch.log(avg_w * 3.0 + eps))
+
+    @staticmethod
+    def _entropy(weights):
+        return -torch.sum(weights * torch.log(weights + 1e-8), dim=-1, keepdim=True)
+
+    def _build_task_router_supervision(
+        self,
+        y,
+        pred_t,
+        pred_a,
+        pred_v,
+        router_logits,
+        router_weights,
+    ):
+        center_aux_loss = (
+            F.smooth_l1_loss(pred_t, y)
+            + F.smooth_l1_loss(pred_a, y)
+            + F.smooth_l1_loss(pred_v, y)
+        ) / 3.0
+
+        center_err = torch.cat([
+            torch.abs(pred_t - y),
+            torch.abs(pred_a - y),
+            torch.abs(pred_v - y),
+        ], dim=1)
+        err_for_oracle = center_err.detach() if self.router_task_detach_oracle else center_err
+
+        if self.router_oracle_type == 'hard':
+            oracle_label = torch.argmin(err_for_oracle, dim=-1)
+            router_task_loss = F.cross_entropy(router_logits, oracle_label)
+            oracle_weight = F.one_hot(oracle_label, num_classes=3).float()
+        else:
+            oracle_weight = torch.softmax(
+                -err_for_oracle / max(self.router_oracle_temperature, 1e-6),
+                dim=-1,
+            )
+            router_task_loss = F.kl_div(
+                torch.log(router_weights + 1e-8),
+                oracle_weight,
+                reduction='batchmean',
+            )
+            oracle_label = torch.argmax(oracle_weight, dim=-1)
+
+        return center_aux_loss, router_task_loss, center_err, oracle_weight, oracle_label
 
     def _project_for_av_fusion(self, audio_x, vision_x):
         # keep original behavior for MOSI and be compatible with MOSEI
@@ -443,9 +554,9 @@ class GATE_F(nn.Module):
             device=text_rep.device,
         )
 
-        # weighted micro representation [B, 4*common_size]
+        # reliability-aware weighted micro representation [B, 4*common_size]
         micro_stack = torch.stack([h_text_center, h_audio_center, h_vision_center], dim=1)
-        weighted_micro = torch.sum(router_weights.unsqueeze(-1) * micro_stack, dim=1)
+        weighted_micro_rel = torch.sum(router_weights.unsqueeze(-1) * micro_stack, dim=1)
 
         center_mode = self.fusion_center_mode
         feat_base = [text_rep, audio_rep, vision_rep]
@@ -454,15 +565,74 @@ class GATE_F(nn.Module):
         feat_v = torch.cat(feat_base + [h_vision_center, audio_visual_fusion], dim=1)
 
         pred_t = pred_a = pred_v = None
-        if center_mode == 'dynamic_task_soft':
+        task_router_logits = None
+        task_router_weights = None
+        weighted_micro_task = None
+        gate_logit = None
+        gate_task = None
+        gate_rel = None
+        router_disagreement = None
+        entropy_rel = self._entropy(router_weights)
+        entropy_task = None
+        pred_std = None
+        pred_range = None
+        weighted_micro_final = weighted_micro_rel
+
+        if center_mode in ['dynamic_task_soft', 'dynamic_rta']:
             # Center-specific auxiliary predictions are used to build task-aware router supervision.
             pred_t = self.center_aux_text(feat_t)
             pred_a = self.center_aux_audio(feat_a)
             pred_v = self.center_aux_vision(feat_v)
-            utterance_rep = torch.cat(
-                (text_rep, audio_rep, vision_rep, weighted_micro, audio_visual_fusion),
-                dim=1,
-            )
+            if center_mode == 'dynamic_rta':
+                task_router_logits, task_router_weights, _ = self._resolve_task_router_weights(
+                    text_rep_common,
+                    audio_rep_common,
+                    vision_rep_common,
+                    text_mask,
+                    audio_mask,
+                    vision_mask,
+                    text_observed_mask,
+                    audio_observed_mask,
+                    vision_observed_mask,
+                )
+                weighted_micro_task = torch.sum(task_router_weights.unsqueeze(-1) * micro_stack, dim=1)
+                entropy_task = self._entropy(task_router_weights)
+
+                max_w_rel = torch.max(router_weights, dim=-1, keepdim=True)[0]
+                max_w_task = torch.max(task_router_weights, dim=-1, keepdim=True)[0]
+                router_disagreement = torch.mean(torch.abs(router_weights - task_router_weights), dim=-1, keepdim=True)
+
+                center_preds = torch.cat([pred_t, pred_a, pred_v], dim=1)
+                pred_std = torch.std(center_preds, dim=1, keepdim=True, correction=0)
+                pred_range = (
+                    torch.max(center_preds, dim=1, keepdim=True)[0]
+                    - torch.min(center_preds, dim=1, keepdim=True)[0]
+                )
+
+                gate_input = torch.cat(
+                    [
+                        availability,
+                        entropy_rel,
+                        entropy_task,
+                        max_w_rel,
+                        max_w_task,
+                        router_disagreement,
+                        pred_std,
+                        pred_range,
+                    ],
+                    dim=1,
+                )
+                if self.use_reliability_task_gate:
+                    gate_logit, gate_task = self.reliability_task_gate(gate_input)
+                else:
+                    gate_task = torch.full_like(max_w_rel, 0.5)
+                    gate_logit = torch.zeros_like(gate_task)
+                gate_rel = 1.0 - gate_task
+                weighted_micro_final = gate_rel * weighted_micro_rel + gate_task * weighted_micro_task
+            else:
+                weighted_micro_final = weighted_micro_rel
+
+            utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_final, audio_visual_fusion), dim=1)
             pred = self.classifier2(utterance_rep)
         elif self.use_anchor_moe:
             feat_base = [text_rep, audio_rep, vision_rep]
@@ -474,16 +644,18 @@ class GATE_F(nn.Module):
             pred = torch.sum(router_weights * pred_stack, dim=1, keepdim=True)
         else:
             utterance_rep = torch.cat(
-                (text_rep, audio_rep, vision_rep, weighted_micro, audio_visual_fusion),
+                (text_rep, audio_rep, vision_rep, weighted_micro_rel, audio_visual_fusion),
                 dim=1,
             )
             pred = self.classifier2(utterance_rep)
 
         selected_idx = torch.argmax(router_weights, dim=-1)
+        selected_task_idx = torch.argmax(task_router_weights, dim=-1) if task_router_weights is not None else None
 
         task_aux_loss = torch.tensor(0.0, device=pred.device)
         center_aux_loss = torch.tensor(0.0, device=pred.device)
         router_task_loss = torch.tensor(0.0, device=pred.device)
+        gate_balance_loss = torch.tensor(0.0, device=pred.device)
         oracle_weight = None
         oracle_label = None
         center_err = None
@@ -495,62 +667,69 @@ class GATE_F(nn.Module):
             and self.training
             and labels is not None
             and pred_t is not None
-            and router_logits is not None
+            and (
+                (center_mode == 'dynamic_task_soft' and router_logits is not None)
+                or (center_mode == 'dynamic_rta' and task_router_logits is not None)
+            )
         ):
             y = labels
             if y.dim() == 1:
                 y = y.unsqueeze(-1)
             y = y.to(pred.device)
 
-            center_aux_loss = (
-                F.smooth_l1_loss(pred_t, y)
-                + F.smooth_l1_loss(pred_a, y)
-                + F.smooth_l1_loss(pred_v, y)
-            ) / 3.0
+            ref_logits = task_router_logits if center_mode == 'dynamic_rta' else router_logits
+            ref_weights = task_router_weights if center_mode == 'dynamic_rta' else router_weights
 
-            center_err = torch.cat([
-                torch.abs(pred_t - y),
-                torch.abs(pred_a - y),
-                torch.abs(pred_v - y),
-            ], dim=1)
-            err_for_oracle = center_err.detach() if self.router_task_detach_oracle else center_err
-
-            if self.router_oracle_type == 'hard':
-                oracle_label = torch.argmin(err_for_oracle, dim=-1)
-                router_task_loss = F.cross_entropy(router_logits, oracle_label)
-                oracle_weight = F.one_hot(oracle_label, num_classes=3).float()
-            else:
-                oracle_weight = torch.softmax(
-                    -err_for_oracle / max(self.router_oracle_temperature, 1e-6),
-                    dim=-1,
-                )
-                router_task_loss = F.kl_div(
-                    torch.log(router_weights + 1e-8),
-                    oracle_weight,
-                    reduction='batchmean',
-                )
+            center_aux_loss, router_task_loss, center_err, oracle_weight, oracle_label = self._build_task_router_supervision(
+                y=y,
+                pred_t=pred_t,
+                pred_a=pred_a,
+                pred_v=pred_v,
+                router_logits=ref_logits,
+                router_weights=ref_weights,
+            )
 
             task_aux_loss = self.center_aux_lambda * center_aux_loss + self.task_router_lambda * router_task_loss
+
+            if center_mode == 'dynamic_rta' and gate_task is not None and self.gate_balance_lambda > 0:
+                mean_g = torch.mean(gate_task)
+                gate_balance_loss = (mean_g - self.gate_target) ** 2
+                task_aux_loss = task_aux_loss + self.gate_balance_lambda * gate_balance_loss
 
         self.last_router_info = {
             'router_weights': router_weights.detach(),
             'router_logits': router_logits.detach() if router_logits is not None else None,
             'availability': availability.detach(),
             'selected_anchor_idx': selected_idx.detach(),
+            'task_router_weights': task_router_weights.detach() if task_router_weights is not None else None,
+            'task_router_logits': task_router_logits.detach() if task_router_logits is not None else None,
+            'task_selected_anchor_idx': selected_task_idx.detach() if selected_task_idx is not None else None,
             'pred_text_center': pred_t.detach() if pred_t is not None else None,
             'pred_audio_center': pred_a.detach() if pred_a is not None else None,
             'pred_vision_center': pred_v.detach() if pred_v is not None else None,
             'center_err': center_err.detach() if center_err is not None else None,
             'oracle_weight': oracle_weight.detach() if oracle_weight is not None else None,
             'oracle_label': oracle_label.detach() if oracle_label is not None else None,
+            'gate_task': gate_task.detach() if gate_task is not None else None,
+            'gate_rel': gate_rel.detach() if gate_rel is not None else None,
+            'gate_logit': gate_logit.detach() if gate_logit is not None else None,
+            'entropy_rel': entropy_rel.detach() if entropy_rel is not None else None,
+            'entropy_task': entropy_task.detach() if entropy_task is not None else None,
+            'router_disagreement': router_disagreement.detach() if router_disagreement is not None else None,
+            'pred_std': pred_std.detach() if pred_std is not None else None,
+            'pred_range': pred_range.detach() if pred_range is not None else None,
+            'h_rel': weighted_micro_rel.detach(),
+            'h_task': weighted_micro_task.detach() if weighted_micro_task is not None else None,
+            'h_ours': weighted_micro_final.detach(),
+            'gate_balance_loss': gate_balance_loss.detach() if gate_balance_loss is not None else None,
         }
 
         aux_total = task_aux_loss
-        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard', 'dynamic_task_soft']:
+        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard', 'dynamic_task_soft', 'dynamic_rta']:
             balance_loss = self._router_balance_loss(router_weights)
             aux_total = aux_total + self.router_balance_lambda * balance_loss
 
-        if self.fusion_center_mode == 'dynamic_task_soft' or aux_total.abs().item() > 0:
+        if self.fusion_center_mode in ['dynamic_task_soft', 'dynamic_rta'] or aux_total.abs().item() > 0:
             return pred, aux_total
         return pred
 

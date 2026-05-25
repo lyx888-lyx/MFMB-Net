@@ -1,0 +1,4 @@
+missing,text_MAE,text_Corr,text_Non0_acc_2,text_Non0_F1_score,audio_MAE,audio_Corr,audio_Non0_acc_2,audio_Non0_F1_score,vision_MAE,vision_Corr,vision_Non0_acc_2,vision_Non0_F1_score,dynamic_soft_MAE,dynamic_soft_Corr,dynamic_soft_Non0_acc_2,dynamic_soft_Non0_F1_score,dynamic_soft_moe_MAE,dynamic_soft_moe_Corr,dynamic_soft_moe_Non0_acc_2,dynamic_soft_moe_Non0_F1_score,dynamic_task_soft_MAE,dynamic_task_soft_Corr,dynamic_task_soft_Non0_acc_2,dynamic_task_soft_Non0_F1_score
+0.100000,,,,,,,,,,,,,,,,,,,,,0.882800,0.723800,0.806433,0.807700
+0.200000,,,,,,,,,,,,,,,,,,,,,1.093633,0.654700,0.744433,0.744400
+0.300000,,,,,,,,,,,,,,,,,,,,,1.080300,0.596800,0.733233,0.735600

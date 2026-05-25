@@ -1,0 +1,47 @@
+\begin{table*}[t]
+\centering
+\caption{Comparison of different anchor strategies on CMU-MOSI under full-test protocol.}
+\begin{tabular}{c l c c c c c c}
+\toprule
+Missing & Method & MAE$\downarrow$ & Corr$\uparrow$ & Non0 Acc-2$\uparrow$ & Non0 F1$\uparrow$ & Mult Acc-5$\uparrow$ & Mult Acc-7$\uparrow$ \\
+\midrule
+0.1 & text & 0.8925 & 0.7303 & \underline{0.8049} & \underline{0.8046} & \textbf{0.4626} & 0.3732 \\
+0.1 & audio & 0.8850 & 0.7311 & 0.8018 & 0.8026 & 0.4145 & 0.3756 \\
+0.1 & vision & \textbf{0.8502} & \textbf{0.7377} & 0.8044 & 0.8037 & \underline{0.4466} & \textbf{0.3824} \\
+0.1 & dynamic_soft & \underline{0.8649} & \underline{0.7350} & 0.8044 & 0.8039 & 0.4407 & \underline{0.3790} \\
+0.1 & dynamic_soft_moe & 0.8976 & 0.7167 & 0.7881 & 0.7880 & 0.4339 & 0.3708 \\
+0.1 & dynamic_task_soft_tuned & 0.8828 & 0.7238 & \textbf{0.8064} & \textbf{0.8077} & 0.4300 & 0.3576 \\
+\midrule
+0.2 & text & 1.0314 & 0.6575 & 0.7586 & 0.7577 & 0.3610 & 0.3188 \\
+0.2 & audio & \textbf{0.9397} & \textbf{0.6758} & \underline{0.7729} & \underline{0.7720} & \underline{0.4004} & \textbf{0.3605} \\
+0.2 & vision & \underline{0.9421} & \underline{0.6724} & \textbf{0.7856} & \textbf{0.7854} & \textbf{0.4033} & \underline{0.3513} \\
+0.2 & dynamic_soft & 1.0409 & 0.6402 & 0.7673 & 0.7667 & 0.3508 & 0.3071 \\
+0.2 & dynamic_soft_moe & 1.0541 & 0.6494 & 0.7520 & 0.7518 & 0.3611 & 0.3154 \\
+0.2 & dynamic_task_soft_tuned & 1.0936 & 0.6547 & 0.7444 & 0.7444 & 0.3562 & 0.3090 \\
+\midrule
+0.3 & text & 1.0770 & \underline{0.6167} & 0.7292 & 0.7334 & 0.3294 & 0.2974 \\
+0.3 & audio & 1.0846 & 0.6113 & 0.7449 & 0.7457 & 0.3406 & 0.2993 \\
+0.3 & vision & \textbf{0.9724} & \textbf{0.6202} & \textbf{0.7647} & \textbf{0.7673} & \textbf{0.3989} & \textbf{0.3435} \\
+0.3 & dynamic_soft & 1.0610 & 0.6053 & 0.7409 & 0.7395 & 0.3362 & 0.3047 \\
+0.3 & dynamic_soft_moe & \underline{1.0008} & 0.6148 & \underline{0.7495} & \underline{0.7497} & \underline{0.3421} & \underline{0.3129} \\
+0.3 & dynamic_task_soft_tuned & 1.0803 & 0.5968 & 0.7332 & 0.7356 & 0.3187 & 0.2969 \\
+\midrule
+0.4 & text & 1.1059 & \underline{0.5497} & 0.7053 & 0.7045 & \underline{0.3144} & 0.2808 \\
+0.4 & audio & 1.1347 & 0.5334 & 0.7114 & 0.7102 & 0.2877 & 0.2629 \\
+0.4 & vision & 1.2219 & 0.5241 & 0.7022 & 0.7049 & 0.2464 & 0.2327 \\
+0.4 & dynamic_soft & \underline{1.0921} & \textbf{0.5524} & \textbf{0.7266} & \textbf{0.7251} & \textbf{0.3207} & \underline{0.2891} \\
+0.4 & dynamic_soft_moe & 1.1596 & 0.5264 & 0.7144 & 0.7211 & 0.3110 & 0.2697 \\
+0.4 & dynamic_task_soft_tuned & \textbf{1.0896} & 0.5194 & \underline{0.7256} & \underline{0.7248} & 0.3100 & \textbf{0.2920} \\
+\midrule
+0.5 & text & 1.2593 & \underline{0.4647} & 0.6626 & 0.6668 & 0.2449 & 0.2289 \\
+0.5 & audio & 1.2776 & 0.4560 & 0.6458 & 0.6526 & \underline{0.2638} & \underline{0.2435} \\
+0.5 & vision & \underline{1.2494} & 0.4619 & \underline{0.6707} & \underline{0.6763} & \textbf{0.3008} & \textbf{0.2716} \\
+0.5 & dynamic_soft & 1.2988 & 0.3788 & 0.6240 & 0.6411 & 0.2153 & 0.2099 \\
+0.5 & dynamic_soft_moe & 1.3486 & 0.4490 & 0.6123 & 0.6578 & 0.2532 & 0.2410 \\
+0.5 & dynamic_task_soft_tuned & \textbf{1.2121} & \textbf{0.4663} & \textbf{0.6855} & \textbf{0.6861} & 0.2575 & 0.2410 \\
+\midrule
+\bottomrule
+\end{tabular}
+\vspace{2mm}
+\footnotesize Full-test protocol: train\_drop\_last=1, eval\_drop\_last=0, test\_drop\_last=0. MOSI test set is evaluated on all 686 samples.
+\end{table*}

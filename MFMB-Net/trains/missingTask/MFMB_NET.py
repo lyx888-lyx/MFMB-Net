@@ -65,7 +65,7 @@ class MFMB_NET():
             missing_tag = f"t{self.args.missing_rate[0]}_a{self.args.missing_rate[1]}_v{self.args.missing_rate[2]}"
         save_path = (
             f"{base_dir}/"
-            f"{self.args.datasetName}_missing{missing_tag}_seed{self.args.seed}_dynamic_task_soft.csv"
+            f"{self.args.datasetName}_missing{missing_tag}_seed{self.args.seed}_{self.args.fusion_center_mode}.csv"
         )
         pd.DataFrame(rows).to_csv(save_path, index=False)
         logger.info('Task router info exported to %s', save_path)
@@ -316,8 +316,29 @@ class MFMB_NET():
                             else:
                                 batch_ids = list(batch_ids)
 
+                            # optional fields for dynamic_rta
+                            task_rw_t = router_info.get('task_router_weights', None)
+                            task_si_t = router_info.get('task_selected_anchor_idx', None)
+                            gate_task_t = router_info.get('gate_task', None)
+                            gate_rel_t = router_info.get('gate_rel', None)
+                            entropy_rel_t = router_info.get('entropy_rel', None)
+                            entropy_task_t = router_info.get('entropy_task', None)
+                            disagreement_t = router_info.get('router_disagreement', None)
+                            pred_std_t = router_info.get('pred_std', None)
+                            pred_range_t = router_info.get('pred_range', None)
+
+                            task_rw = task_rw_t.detach().cpu().numpy() if task_rw_t is not None else None
+                            task_si = task_si_t.detach().cpu().numpy() if task_si_t is not None else None
+                            gate_task = gate_task_t.detach().cpu().numpy().reshape(-1) if gate_task_t is not None else None
+                            gate_rel = gate_rel_t.detach().cpu().numpy().reshape(-1) if gate_rel_t is not None else None
+                            entropy_rel = entropy_rel_t.detach().cpu().numpy().reshape(-1) if entropy_rel_t is not None else None
+                            entropy_task = entropy_task_t.detach().cpu().numpy().reshape(-1) if entropy_task_t is not None else None
+                            disagreement = disagreement_t.detach().cpu().numpy().reshape(-1) if disagreement_t is not None else None
+                            pred_std = pred_std_t.detach().cpu().numpy().reshape(-1) if pred_std_t is not None else None
+                            pred_range = pred_range_t.detach().cpu().numpy().reshape(-1) if pred_range_t is not None else None
+
                             for i in range(len(yp)):
-                                task_router_rows.append({
+                                row = {
                                     'index': int(batch_indices[i]) if batch_indices[i] is not None else i,
                                     'id': str(batch_ids[i]),
                                     'y_true': float(yt[i]),
@@ -340,7 +361,30 @@ class MFMB_NET():
                                     'availability_text': float(av[i, 0]),
                                     'availability_audio': float(av[i, 1]),
                                     'availability_vision': float(av[i, 2]),
-                                })
+                                }
+
+                                if task_rw is not None:
+                                    task_anchor_idx = int(task_si[i]) if task_si is not None else int(np.argmax(task_rw[i]))
+                                    row.update({
+                                        'g_task': float(gate_task[i]) if gate_task is not None else np.nan,
+                                        'g_rel': float(gate_rel[i]) if gate_rel is not None else np.nan,
+                                        'w_rel_text': float(rw[i, 0]),
+                                        'w_rel_audio': float(rw[i, 1]),
+                                        'w_rel_vision': float(rw[i, 2]),
+                                        'w_task_text': float(task_rw[i, 0]),
+                                        'w_task_audio': float(task_rw[i, 1]),
+                                        'w_task_vision': float(task_rw[i, 2]),
+                                        'router_rel_selected_anchor': anchor_map.get(int(si[i]), 'text'),
+                                        'router_task_selected_anchor': anchor_map.get(task_anchor_idx, 'text'),
+                                        'task_router_oracle_match': int(task_anchor_idx == int(oracle_idx[i])),
+                                        'entropy_rel': float(entropy_rel[i]) if entropy_rel is not None else np.nan,
+                                        'entropy_task': float(entropy_task[i]) if entropy_task is not None else np.nan,
+                                        'router_disagreement': float(disagreement[i]) if disagreement is not None else np.nan,
+                                        'pred_std': float(pred_std[i]) if pred_std is not None else np.nan,
+                                        'pred_range': float(pred_range[i]) if pred_range is not None else np.nan,
+                                    })
+
+                                task_router_rows.append(row)
         eval_loss = eval_loss / len(dataloader)
 
         pred, true = torch.cat(y_pred), torch.cat(y_true)

@@ -25,7 +25,7 @@ METRICS = [
     "Loss",
 ]
 DEFAULT_SEEDS = [111, 1111, 11111]
-SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft"]
+SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft", "dynamic_rta"]
 
 
 @dataclass
@@ -77,6 +77,12 @@ def parse_args():
     parser.add_argument("--router_oracle_type", type=str, default="soft", choices=["soft", "hard"])
     parser.add_argument("--export_task_router_info", type=int, default=1)
     parser.add_argument("--task_router_output_dir", type=str, default="")
+    parser.add_argument("--use_reliability_task_gate", type=int, default=0)
+    parser.add_argument("--gate_balance_lambda", type=float, default=0.01)
+    parser.add_argument("--gate_target", type=float, default=0.5)
+    parser.add_argument("--gate_hidden_dim", type=int, default=32)
+    parser.add_argument("--gate_dropout", type=float, default=0.1)
+    parser.add_argument("--gate_init_bias", type=float, default=0.0)
     return parser.parse_args()
 
 
@@ -126,6 +132,12 @@ def mode_to_flags(
     router_oracle_temperature: float = 0.5,
     router_oracle_type: str = "soft",
     task_router_output_dir: str = "",
+    use_reliability_task_gate: int = 0,
+    gate_balance_lambda: float = 0.01,
+    gate_target: float = 0.5,
+    gate_hidden_dim: int = 32,
+    gate_dropout: float = 0.1,
+    gate_init_bias: float = 0.0,
 ) -> Tuple[str, int, List[str]]:
     if mode == "text":
         return "text", 0, []
@@ -159,6 +171,28 @@ def mode_to_flags(
         if task_router_output_dir:
             flags += ["--task_router_output_dir", task_router_output_dir]
         return "dynamic_task_soft", 0, flags
+    if mode == "dynamic_rta":
+        flags = [
+            "--router_missing_bias", str(router_missing_bias),
+            "--use_task_aware_router", "1",
+            "--use_reliability_task_gate", str(int(use_reliability_task_gate)),
+            "--task_router_lambda", str(task_router_lambda),
+            "--center_aux_lambda", str(center_aux_lambda),
+            "--router_oracle_temperature", str(router_oracle_temperature),
+            "--router_oracle_type", str(router_oracle_type),
+            "--gate_balance_lambda", str(gate_balance_lambda),
+            "--gate_target", str(gate_target),
+            "--gate_hidden_dim", str(gate_hidden_dim),
+            "--gate_dropout", str(gate_dropout),
+            "--gate_init_bias", str(gate_init_bias),
+        ]
+        if int(export_anchor_weights) == 1:
+            flags += ["--export_anchor_weights", "1"]
+        if int(export_task_router_info) == 1:
+            flags += ["--export_task_router_info", "1"]
+        if task_router_output_dir:
+            flags += ["--task_router_output_dir", task_router_output_dir]
+        return "dynamic_rta", 0, flags
     raise ValueError(f"Unsupported mode: {mode}")
 
 
@@ -178,6 +212,12 @@ def make_run_config(
     router_oracle_temperature: float = 0.5,
     router_oracle_type: str = "soft",
     task_router_output_dir: str = "",
+    use_reliability_task_gate: int = 0,
+    gate_balance_lambda: float = 0.01,
+    gate_target: float = 0.5,
+    gate_hidden_dim: int = 32,
+    gate_dropout: float = 0.1,
+    gate_init_bias: float = 0.0,
 ) -> RunConfig:
     center_mode, use_moe, _ = mode_to_flags(
         mode,
@@ -189,6 +229,12 @@ def make_run_config(
         router_oracle_temperature=router_oracle_temperature,
         router_oracle_type=router_oracle_type,
         task_router_output_dir=task_router_output_dir,
+        use_reliability_task_gate=use_reliability_task_gate,
+        gate_balance_lambda=gate_balance_lambda,
+        gate_target=gate_target,
+        gate_hidden_dim=gate_hidden_dim,
+        gate_dropout=gate_dropout,
+        gate_init_bias=gate_init_bias,
     )
     return RunConfig(
         dataset=dataset,
@@ -223,6 +269,12 @@ def build_command(cfg: RunConfig, args, seed_list: List[int], run_help_text: str
         router_oracle_temperature=args.router_oracle_temperature,
         router_oracle_type=args.router_oracle_type,
         task_router_output_dir=(args.task_router_output_dir or os.path.join(args.output_dir, "task_router_analysis")),
+        use_reliability_task_gate=args.use_reliability_task_gate,
+        gate_balance_lambda=args.gate_balance_lambda,
+        gate_target=args.gate_target,
+        gate_hidden_dim=args.gate_hidden_dim,
+        gate_dropout=args.gate_dropout,
+        gate_init_bias=args.gate_init_bias,
     )
     base = shlex.split(args.python_bin) + [
         "run.py",

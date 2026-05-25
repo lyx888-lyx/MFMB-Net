@@ -1,0 +1,3 @@
+missing,mode,mean_w_text,mean_w_audio,mean_w_vision,selected_text_ratio,selected_audio_ratio,selected_vision_ratio,entropy,is_router_collapsed,dominant_anchor,dominant_anchor_ratio,corr_availability_text_w_text,corr_availability_audio_w_audio,corr_availability_vision_w_vision
+0.300000,dynamic_soft,0.333307,0.333538,0.333155,0.333333,0.333333,0.333333,0.002422,False,audio,0.333538,0.530920,0.518092,0.466244
+0.300000,dynamic_soft_moe,0.198539,0.695735,0.105726,0.184645,0.815355,0.000000,0.622253,False,audio,0.695735,0.783377,0.720971,0.649694

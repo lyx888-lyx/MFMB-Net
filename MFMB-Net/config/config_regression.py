@@ -194,6 +194,13 @@ class ConfigRegression():
                 'router_task_detach_oracle': 1,
                 'export_task_router_info': 0,
                 'task_router_output_dir': 'results/task_router_analysis',
+                # Reliability-gated task-aware routing options (dynamic_rta)
+                'use_reliability_task_gate': 0,
+                'gate_hidden_dim': 32,
+                'gate_dropout': 0.1,
+                'gate_init_bias': 0.0,
+                'gate_balance_lambda': 0.0,
+                'gate_target': 0.5,
             },
             # dataset
             'datasetParas':{
