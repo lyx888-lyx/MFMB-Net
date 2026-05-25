@@ -11,6 +11,17 @@ MAIN_TABLE_METHODS = ["text", "audio", "vision", "dynamic_soft", "dynamic_task_s
 ABLATION_METHODS = ["dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft_tuned", "dynamic_rta"]
 
 
+def warn_if_normals(path: Path):
+    p = str(path).replace("\\", "/")
+    if "/results/results/normals/" in p:
+        print("WARNING: normals CSV does not contain sufficient experiment metadata and should not be used for paper tables.")
+
+
+def read_csv_guard(path: Path) -> pd.DataFrame:
+    warn_if_normals(path)
+    return pd.read_csv(path)
+
+
 def filter_protocol(df):
     need = (df.get("train_drop_last", -1) == 1) & (df.get("eval_drop_last", -1) == 0) & (df.get("test_drop_last", -1) == 0)
     if need.any():
@@ -194,18 +205,18 @@ def main():
     taskaware_dir = Path(args.taskaware_dir)
     (rta_dir / "figures").mkdir(parents=True, exist_ok=True)
 
-    base = pd.read_csv(baseline_dir / "anchor_experiment_agg.csv")
+    base = read_csv_guard(baseline_dir / "anchor_experiment_agg.csv")
     base = filter_protocol(base)
     base = base[base["missing"].isin([0.1, 0.2, 0.3, 0.4, 0.5])]
     base = base[base["mode"].isin(["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe"])]
     base_df = to_metric_df(base)
 
-    task = pd.read_csv(taskaware_dir / "tuned_dynamic_task_soft_0.1_0.5.csv")
+    task = read_csv_guard(taskaware_dir / "tuned_dynamic_task_soft_0.1_0.5.csv")
     task = task[task["missing"].isin([0.1, 0.2, 0.3, 0.4, 0.5])].copy()
     task_df = task[["missing", "MAE", "Corr", "Non0_acc_2", "Non0_F1_score", "Mult_acc_5", "Mult_acc_7"]].copy()
     task_df["method"] = "dynamic_task_soft_tuned"
 
-    rta = pd.read_csv(rta_dir / "anchor_experiment_agg.csv")
+    rta = read_csv_guard(rta_dir / "anchor_experiment_agg.csv")
     rta = filter_protocol(rta)
     rta = rta[(rta["mode"] == "dynamic_rta") & (rta["missing"].isin([0.1, 0.2, 0.3, 0.4, 0.5]))]
     rta_df = to_metric_df(rta)

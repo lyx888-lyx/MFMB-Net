@@ -14,6 +14,17 @@ METHOD_ORDER = ['text', 'audio', 'vision', 'dynamic_soft', 'dynamic_soft_moe', '
 METRICS = ['MAE', 'Corr', 'Non0_acc_2', 'Non0_F1_score', 'Mult_acc_5', 'Mult_acc_7']
 
 
+def warn_if_normals(path: Path):
+    p = str(path).replace("\\", "/")
+    if "/results/results/normals/" in p:
+        print("WARNING: normals CSV does not contain sufficient experiment metadata and should not be used for paper tables.")
+
+
+def read_csv_guard(path: Path) -> pd.DataFrame:
+    warn_if_normals(path)
+    return pd.read_csv(path)
+
+
 def filter_protocol(df: pd.DataFrame) -> pd.DataFrame:
     mask = (df.get('train_drop_last', -1) == 1) & (df.get('eval_drop_last', -1) == 0) & (df.get('test_drop_last', -1) == 0)
     use = df[mask].copy() if mask.any() else df.copy()
@@ -23,7 +34,7 @@ def filter_protocol(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_baseline() -> pd.DataFrame:
-    df = pd.read_csv(FULLTEST / 'anchor_experiment_agg.csv')
+    df = read_csv_guard(FULLTEST / 'anchor_experiment_agg.csv')
     df = filter_protocol(df)
     df = df[df['mode'].isin(['text', 'audio', 'vision', 'dynamic_soft', 'dynamic_soft_moe'])]
     df = df[df['missing'].between(0.1, 0.5)]
@@ -36,11 +47,11 @@ def load_baseline() -> pd.DataFrame:
 
 
 def load_tuned_taskrouter():
-    final_agg = pd.read_csv(OUT / 'anchor_experiment_agg.csv')
+    final_agg = read_csv_guard(OUT / 'anchor_experiment_agg.csv')
     final_agg = filter_protocol(final_agg)
     final_agg = final_agg[(final_agg['mode'] == 'dynamic_task_soft') & (final_agg['missing'].isin([0.1, 0.2, 0.3]))]
 
-    tune_agg = pd.read_csv(TUNE / 'anchor_experiment_agg.csv')
+    tune_agg = read_csv_guard(TUNE / 'anchor_experiment_agg.csv')
     tune_agg = filter_protocol(tune_agg)
     tune_agg = tune_agg[(tune_agg['mode'] == 'dynamic_task_soft') & (tune_agg['missing'].isin([0.4, 0.5]))]
 
@@ -51,9 +62,9 @@ def load_tuned_taskrouter():
         'Mult_acc_5_mean': 'Mult_acc_5', 'Mult_acc_7_mean': 'Mult_acc_7'
     })
 
-    final_diag = pd.read_csv(OUT / 'task_router_diagnostics.csv')
+    final_diag = read_csv_guard(OUT / 'task_router_diagnostics.csv')
     final_diag = final_diag[final_diag['missing'].isin([0.1, 0.2, 0.3])]
-    tune_diag = pd.read_csv(TUNE / 'task_router_diagnostics.csv')
+    tune_diag = read_csv_guard(TUNE / 'task_router_diagnostics.csv')
     tune_diag = tune_diag[tune_diag['missing'].isin([0.4, 0.5])]
     diag = pd.concat([final_diag, tune_diag], ignore_index=True)
 

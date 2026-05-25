@@ -4,6 +4,7 @@ import glob
 import os
 import re
 import shlex
+import socket
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -89,6 +90,69 @@ def parse_args():
 def ensure_dirs(out_root: str):
     os.makedirs(out_root, exist_ok=True)
     os.makedirs(os.path.join(out_root, "logs"), exist_ok=True)
+
+
+def get_git_meta() -> Tuple[str, str]:
+    branch = "unknown"
+    commit = "unknown"
+    try:
+        p = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=10)
+        if p.returncode == 0 and p.stdout.strip():
+            branch = p.stdout.strip()
+    except Exception:
+        pass
+    try:
+        p = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10)
+        if p.returncode == 0 and p.stdout.strip():
+            commit = p.stdout.strip()
+    except Exception:
+        pass
+    return branch, commit
+
+
+def make_protocol_tag(train_drop_last: int, eval_drop_last: int, test_drop_last: int) -> str:
+    return f"trainDL{int(train_drop_last)}_evalDL{int(eval_drop_last)}_testDL{int(test_drop_last)}"
+
+
+def make_run_id(dataset: str, missing: float, mode: str, seed: str,
+                train_drop_last: int, eval_drop_last: int, test_drop_last: int,
+                created_time: Optional[datetime] = None) -> str:
+    ts = (created_time or datetime.utcnow()).strftime("%Y%m%d_%H%M")
+    return (
+        f"{dataset}_m{missing}_{mode}_seed{seed}_"
+        f"trainDL{int(train_drop_last)}_evalDL{int(eval_drop_last)}_testDL{int(test_drop_last)}_{ts}"
+    )
+
+
+def parse_start_time(log_path: str) -> Optional[datetime]:
+    if not os.path.exists(log_path):
+        return None
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if line.startswith("[START] "):
+                    s = line.replace("[START] ", "").strip().replace("Z", "")
+                    return datetime.fromisoformat(s)
+    except Exception:
+        return None
+    return None
+
+
+def parse_batch_size(log_path: str) -> Optional[int]:
+    if not os.path.exists(log_path):
+        return None
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            txt = f.read()
+        m = re.findall(r"'batch_size':\s*(\d+)", txt)
+        if m:
+            return int(m[-1])
+        m = re.findall(r"batch_size:\s*(\d+)", txt)
+        if m:
+            return int(m[-1])
+    except Exception:
+        return None
+    return None
 
 
 def resolve_lists(args):
@@ -363,14 +427,63 @@ def parse_effective_samples(log_path: str) -> Dict[str, float]:
     return result
 
 
+def parse_drop_last_flags(log_path: str) -> Dict[str, Optional[int]]:
+    out = {"train_drop_last": None, "eval_drop_last": None, "test_drop_last": None}
+    if not os.path.exists(log_path):
+        return out
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        pats = {
+            "train_drop_last": re.compile(r"train_drop_last:\s*([01])"),
+            "eval_drop_last": re.compile(r"eval_drop_last:\s*([01])"),
+            "test_drop_last": re.compile(r"test_drop_last:\s*([01])"),
+        }
+        for k, p in pats.items():
+            m = p.findall(text)
+            if m:
+                out[k] = int(m[-1])
+    except Exception:
+        return out
+    return out
+
+
+def parse_logged_command(log_path: str) -> str:
+    if not os.path.exists(log_path):
+        return ""
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if line.startswith("[CMD] "):
+                    return line.replace("[CMD] ", "").strip()
+    except Exception:
+        return ""
+    return ""
+
+
+def parse_cmd_flag_value(cmd: str, flag: str) -> Optional[str]:
+    if not cmd:
+        return None
+    try:
+        toks = shlex.split(cmd)
+    except Exception:
+        toks = cmd.split()
+    for i, t in enumerate(toks):
+        if t == flag and i + 1 < len(toks):
+            return toks[i + 1]
+    return None
+
+
 def run_single(cfg: RunConfig, args, out_root: str, seed_list: List[int], run_help_text: str) -> Dict[str, str]:
     missing_tag = str(cfg.missing)
     stage_tag = args.phase
+    protocol_tag = make_protocol_tag(cfg.train_drop_last, cfg.eval_drop_last, cfg.test_drop_last)
+    seed_tag = "seed" + ",".join(str(x) for x in seed_list) if seed_list else "seedNA"
     tag_suffix = f"_{cfg.tag}" if cfg.tag else ""
     log_path = os.path.join(
         out_root,
         "logs",
-        f"{cfg.dataset}_missing{missing_tag}_{cfg.mode}{tag_suffix}_{stage_tag}.log",
+        f"{cfg.dataset}_m{missing_tag}_{cfg.mode}_{seed_tag}_{protocol_tag}{tag_suffix}_{stage_tag}.log",
     )
     cmd = build_command(cfg, args, seed_list, run_help_text)
 
@@ -381,9 +494,11 @@ def run_single(cfg: RunConfig, args, out_root: str, seed_list: List[int], run_he
             "missing": str(cfg.missing),
             "mode": cfg.mode,
             "phase": args.phase,
+            "protocol_tag": protocol_tag,
             "train_drop_last": str(cfg.train_drop_last),
             "eval_drop_last": str(cfg.eval_drop_last),
             "test_drop_last": str(cfg.test_drop_last),
+            "seeds": ",".join(str(x) for x in seed_list),
             "tag": cfg.tag,
             "status": "skipped_completed",
             "reason": "existing_complete_log",
@@ -398,9 +513,11 @@ def run_single(cfg: RunConfig, args, out_root: str, seed_list: List[int], run_he
             "missing": str(cfg.missing),
             "mode": cfg.mode,
             "phase": args.phase,
+            "protocol_tag": protocol_tag,
             "train_drop_last": str(cfg.train_drop_last),
             "eval_drop_last": str(cfg.eval_drop_last),
             "test_drop_last": str(cfg.test_drop_last),
+            "seeds": ",".join(str(x) for x in seed_list),
             "tag": cfg.tag,
             "status": "dry_run",
             "reason": "not_executed",
@@ -454,9 +571,11 @@ def run_single(cfg: RunConfig, args, out_root: str, seed_list: List[int], run_he
         "missing": str(cfg.missing),
         "mode": cfg.mode,
         "phase": args.phase,
+        "protocol_tag": protocol_tag,
         "train_drop_last": str(cfg.train_drop_last),
         "eval_drop_last": str(cfg.eval_drop_last),
         "test_drop_last": str(cfg.test_drop_last),
+        "seeds": ",".join(str(x) for x in seed_list),
         "tag": cfg.tag,
         "status": status,
         "reason": reason,
@@ -477,7 +596,50 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
         cfg_missing = float(rec["missing"])
         parsed = parse_log(rec["log_path"])
         eff = parse_effective_samples(rec["log_path"])
+        dl = parse_drop_last_flags(rec["log_path"])
+        def _dl_norm(v, fallback):
+            try:
+                iv = int(float(v))
+                if iv in (0, 1):
+                    return iv
+            except Exception:
+                pass
+            return int(fallback)
+        td = _dl_norm(rec.get("train_drop_last", args.train_drop_last),
+                      dl["train_drop_last"] if dl["train_drop_last"] is not None else args.train_drop_last)
+        ed = _dl_norm(rec.get("eval_drop_last", args.eval_drop_last),
+                      dl["eval_drop_last"] if dl["eval_drop_last"] is not None else args.eval_drop_last)
+        xd = _dl_norm(rec.get("test_drop_last", args.test_drop_last),
+                      dl["test_drop_last"] if dl["test_drop_last"] is not None else args.test_drop_last)
+        bs = parse_batch_size(rec["log_path"])
+        logged_cmd = rec.get("command", "") or parse_logged_command(rec["log_path"])
         center_mode, use_moe, _ = mode_to_flags(rec["mode"], args.export_anchor_weights, args.router_missing_bias)
+        protocol_tag = rec.get("protocol_tag") or make_protocol_tag(td, ed, xd)
+
+        task_router_lambda = parse_cmd_flag_value(logged_cmd, "--task_router_lambda")
+        center_aux_lambda = parse_cmd_flag_value(logged_cmd, "--center_aux_lambda")
+        router_oracle_temperature = parse_cmd_flag_value(logged_cmd, "--router_oracle_temperature")
+        router_oracle_type = parse_cmd_flag_value(logged_cmd, "--router_oracle_type")
+        gate_balance_lambda = parse_cmd_flag_value(logged_cmd, "--gate_balance_lambda")
+        gate_target = parse_cmd_flag_value(logged_cmd, "--gate_target")
+        router_missing_bias = parse_cmd_flag_value(logged_cmd, "--router_missing_bias")
+        use_task_aware_router = parse_cmd_flag_value(logged_cmd, "--use_task_aware_router")
+        use_reliability_task_gate = parse_cmd_flag_value(logged_cmd, "--use_reliability_task_gate")
+        export_anchor_weights = parse_cmd_flag_value(logged_cmd, "--export_anchor_weights")
+        export_task_router_info = parse_cmd_flag_value(logged_cmd, "--export_task_router_info")
+        output_dir = parse_cmd_flag_value(logged_cmd, "--task_router_output_dir") or args.output_dir
+
+        def _f(v, d):
+            try:
+                return float(v)
+            except Exception:
+                return float(d)
+
+        def _i(v, d):
+            try:
+                return int(float(v))
+            except Exception:
+                return int(d)
 
         if rec["status"] in ["failed", "dry_run"] or len(parsed.test_rows) == 0:
             failed.append({
@@ -496,18 +658,39 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
                 "missing": cfg_missing,
                 "mode": rec["mode"],
                 "phase": rec["phase"],
+                "protocol_tag": protocol_tag,
                 "fusion_center_mode": center_mode,
                 "use_anchor_moe": use_moe,
                 "seed": np.nan,
-                "train_drop_last": _safe_int(rec.get("train_drop_last", -1)),
-                "eval_drop_last": _safe_int(rec.get("eval_drop_last", -1)),
-                "test_drop_last": _safe_int(rec.get("test_drop_last", -1)),
+                "train_drop_last": td,
+                "eval_drop_last": ed,
+                "test_drop_last": xd,
+                "task_router_lambda": _f(task_router_lambda, args.task_router_lambda),
+                "center_aux_lambda": _f(center_aux_lambda, args.center_aux_lambda),
+                "router_oracle_temperature": _f(router_oracle_temperature, args.router_oracle_temperature),
+                "router_oracle_type": (router_oracle_type or args.router_oracle_type),
+                "router_missing_bias": _f(router_missing_bias, args.router_missing_bias),
+                "gate_balance_lambda": _f(gate_balance_lambda, args.gate_balance_lambda),
+                "gate_target": _f(gate_target, args.gate_target),
+                "use_task_aware_router": _i(use_task_aware_router, 0),
+                "use_reliability_task_gate": _i(use_reliability_task_gate, args.use_reliability_task_gate),
+                "export_anchor_weights": _i(export_anchor_weights, args.export_anchor_weights),
+                "export_task_router_info": _i(export_task_router_info, args.export_task_router_info),
+                "train_batch_size": bs if bs is not None else np.nan,
+                "eval_batch_size": bs if bs is not None else np.nan,
+                "test_batch_size": bs if bs is not None else np.nan,
+                "output_dir": output_dir,
                 "effective_train_samples": eff["effective_train_samples"],
                 "effective_valid_samples": eff["effective_valid_samples"],
                 "effective_test_samples": eff["effective_test_samples"],
                 "status": rec["status"],
                 "log_path": rec["log_path"],
             }
+            row["run_id"] = make_run_id(
+                row["dataset"], row["missing"], row["mode"], "NA",
+                row["train_drop_last"], row["eval_drop_last"], row["test_drop_last"],
+                created_time=parse_start_time(rec["log_path"]),
+            )
             for m in METRICS:
                 row[m] = np.nan
             rows.append(row)
@@ -520,18 +703,39 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
                 "missing": cfg_missing,
                 "mode": rec["mode"],
                 "phase": rec["phase"],
+                "protocol_tag": protocol_tag,
                 "fusion_center_mode": center_mode,
                 "use_anchor_moe": use_moe,
                 "seed": seed_val,
-                "train_drop_last": _safe_int(rec.get("train_drop_last", -1)),
-                "eval_drop_last": _safe_int(rec.get("eval_drop_last", -1)),
-                "test_drop_last": _safe_int(rec.get("test_drop_last", -1)),
+                "train_drop_last": td,
+                "eval_drop_last": ed,
+                "test_drop_last": xd,
+                "task_router_lambda": _f(task_router_lambda, args.task_router_lambda),
+                "center_aux_lambda": _f(center_aux_lambda, args.center_aux_lambda),
+                "router_oracle_temperature": _f(router_oracle_temperature, args.router_oracle_temperature),
+                "router_oracle_type": (router_oracle_type or args.router_oracle_type),
+                "router_missing_bias": _f(router_missing_bias, args.router_missing_bias),
+                "gate_balance_lambda": _f(gate_balance_lambda, args.gate_balance_lambda),
+                "gate_target": _f(gate_target, args.gate_target),
+                "use_task_aware_router": _i(use_task_aware_router, 0),
+                "use_reliability_task_gate": _i(use_reliability_task_gate, args.use_reliability_task_gate),
+                "export_anchor_weights": _i(export_anchor_weights, args.export_anchor_weights),
+                "export_task_router_info": _i(export_task_router_info, args.export_task_router_info),
+                "train_batch_size": bs if bs is not None else np.nan,
+                "eval_batch_size": bs if bs is not None else np.nan,
+                "test_batch_size": bs if bs is not None else np.nan,
+                "output_dir": output_dir,
                 "effective_train_samples": eff["effective_train_samples"],
                 "effective_valid_samples": eff["effective_valid_samples"],
                 "effective_test_samples": eff["effective_test_samples"],
                 "status": "success" if parsed.completed else "partial",
                 "log_path": rec["log_path"],
             }
+            row["run_id"] = make_run_id(
+                row["dataset"], row["missing"], row["mode"], str(seed_val),
+                row["train_drop_last"], row["eval_drop_last"], row["test_drop_last"],
+                created_time=parse_start_time(rec["log_path"]),
+            )
             for m in METRICS:
                 row[m] = mrow.get(m, np.nan)
             rows.append(row)
@@ -565,7 +769,13 @@ def build_agg(summary_df: pd.DataFrame) -> pd.DataFrame:
     if ok.empty:
         return pd.DataFrame()
 
-    group_cols = ["dataset", "phase", "missing", "mode", "train_drop_last", "eval_drop_last", "test_drop_last"]
+    group_cols = [
+        "dataset", "phase", "missing", "mode", "protocol_tag",
+        "train_drop_last", "eval_drop_last", "test_drop_last",
+        "task_router_lambda", "center_aux_lambda",
+        "router_oracle_temperature", "router_oracle_type",
+        "gate_balance_lambda", "gate_target",
+    ]
     agg_items = {}
     for m in ["MAE", "Corr", "Non0_acc_2", "Non0_F1_score", "Mult_acc_5", "Mult_acc_7"]:
         agg_items[f"{m}_mean"] = (m, "mean")
@@ -597,10 +807,10 @@ def build_delta_vs_text(agg_df: pd.DataFrame) -> pd.DataFrame:
         "Mult_acc_7_mean": "Mult_acc_7_text",
     })
 
-    merge_keys = ["dataset", "phase", "missing", "train_drop_last", "eval_drop_last", "test_drop_last"]
+    merge_keys = ["dataset", "phase", "missing", "protocol_tag", "train_drop_last", "eval_drop_last", "test_drop_last"]
     merged = agg_df.merge(
         base[[
-            "dataset", "phase", "missing", "train_drop_last", "eval_drop_last", "test_drop_last", "MAE_text", "Corr_text",
+            "dataset", "phase", "missing", "protocol_tag", "train_drop_last", "eval_drop_last", "test_drop_last", "MAE_text", "Corr_text",
             "Non0_acc_2_text", "Non0_F1_score_text", "Mult_acc_5_text", "Mult_acc_7_text"
         ]],
         on=merge_keys,
@@ -615,7 +825,7 @@ def build_delta_vs_text(agg_df: pd.DataFrame) -> pd.DataFrame:
     merged["delta_Mult_acc_7"] = merged["Mult_acc_7_mean"] - merged["Mult_acc_7_text"]
 
     cols = [
-        "dataset", "phase", "missing", "mode", "train_drop_last", "eval_drop_last", "test_drop_last",
+        "dataset", "phase", "missing", "mode", "protocol_tag", "train_drop_last", "eval_drop_last", "test_drop_last",
         "MAE_mean", "MAE_text", "delta_MAE",
         "Corr_mean", "Corr_text", "delta_Corr",
         "Non0_acc_2_mean", "Non0_acc_2_text", "delta_Non0_acc_2",
@@ -851,38 +1061,66 @@ def build_progress_table(summary_df: pd.DataFrame, run_records: List[Dict[str, s
 def collect_existing_records(out_root: str, dataset_name: str, phases: List[str], expected_seed_list: List[int]) -> List[Dict[str, str]]:
     records = []
     expected_n = len(expected_seed_list)
+    mode_candidates = sorted(SUPPORTED_MODES, key=len, reverse=True)
     for ph in phases:
         phase_suffix = f"_{ph}.log"
-        filename_re = re.compile(
-            rf"^(?P<dataset>[A-Za-z0-9]+)_missing(?P<missing>[^_]+)_(?P<mode_and_tag>.+)_{ph}\.log$"
-        )
         logs_glob = glob.glob(os.path.join(out_root, "logs", f"*{phase_suffix}"))
         for lp in sorted(set(logs_glob)):
             bn = os.path.basename(lp)
-            m = filename_re.match(bn)
-            if not m:
+            if not bn.endswith(phase_suffix):
                 continue
-            ds = m.group("dataset")
-            if ds != dataset_name:
-                continue
-            mode_and_tag = m.group("mode_and_tag")
+            stem = bn[: -len(phase_suffix)]  # remove _{phase}.log
+            ds = None
+            miss = None
             mode = None
             tag = ""
-            for cand in sorted(SUPPORTED_MODES, key=len, reverse=True):
-                if mode_and_tag == cand:
-                    mode = cand
-                    tag = ""
-                    break
-                if mode_and_tag.startswith(cand + "_"):
-                    mode = cand
-                    tag = mode_and_tag[len(cand) + 1:]
-                    break
-            if mode is None:
+            protocol_tag = ""
+            seeds = ""
+
+            # new format:
+            # {dataset}_m{missing}_{mode}_seed{...}_trainDLx_evalDLy_testDLz[_tag]
+            new_re = re.match(
+                r"^(?P<dataset>[A-Za-z0-9]+)_m(?P<missing>[^_]+)_(?P<mode>[A-Za-z0-9_]+)_seed(?P<seeds>[^_]+)_(?P<protocol>trainDL[01]_evalDL[01]_testDL[01])(?:_(?P<tag>.+))?$",
+                stem,
+            )
+            if new_re:
+                ds = new_re.group("dataset")
+                try:
+                    miss = float(new_re.group("missing"))
+                except Exception:
+                    miss = None
+                mode = new_re.group("mode")
+                seeds = new_re.group("seeds") or ""
+                protocol_tag = new_re.group("protocol") or ""
+                tag = new_re.group("tag") or ""
+            else:
+                # old format compatibility:
+                # {dataset}_missing{missing}_{mode_and_tag}
+                old_re = re.match(r"^(?P<dataset>[A-Za-z0-9]+)_missing(?P<missing>[^_]+)_(?P<mode_and_tag>.+)$", stem)
+                if not old_re:
+                    continue
+                ds = old_re.group("dataset")
+                try:
+                    miss = float(old_re.group("missing"))
+                except Exception:
+                    miss = None
+                mode_and_tag = old_re.group("mode_and_tag")
+                for cand in mode_candidates:
+                    if mode_and_tag == cand:
+                        mode = cand
+                        tag = ""
+                        break
+                    if mode_and_tag.startswith(cand + "_"):
+                        mode = cand
+                        tag = mode_and_tag[len(cand) + 1:]
+                        break
+                m_drop = re.match(r"eval(?P<e>[01])_test(?P<t>[01])$", tag)
+                if m_drop:
+                    protocol_tag = f"trainDL1_evalDL{m_drop.group('e')}_testDL{m_drop.group('t')}"
+
+            if ds is None or miss is None or mode is None:
                 continue
-            missing_raw = m.group("missing")
-            try:
-                missing_val = float(missing_raw)
-            except Exception:
+            if ds != dataset_name:
                 continue
             parsed = parse_log(lp)
             status = "success" if parsed.completed and len(parsed.test_rows) >= expected_n else (
@@ -891,21 +1129,23 @@ def collect_existing_records(out_root: str, dataset_name: str, phases: List[str]
             train_drop_last = -1
             eval_drop_last = -1
             test_drop_last = -1
-            m_drop = re.match(r"eval(?P<e>[01])_test(?P<t>[01])$", tag)
-            if m_drop:
-                eval_drop_last = int(m_drop.group("e"))
-                test_drop_last = int(m_drop.group("t"))
-                train_drop_last = 1
+            m_protocol = re.match(r"trainDL(?P<t>[01])_evalDL(?P<e>[01])_testDL(?P<x>[01])$", protocol_tag)
+            if m_protocol:
+                train_drop_last = int(m_protocol.group("t"))
+                eval_drop_last = int(m_protocol.group("e"))
+                test_drop_last = int(m_protocol.group("x"))
 
             records.append({
                 "dataset": ds,
-                "missing": str(missing_val),
+                "missing": str(miss),
                 "mode": mode,
                 "phase": ph,
                 "tag": tag,
+                "protocol_tag": protocol_tag,
                 "train_drop_last": str(train_drop_last),
                 "eval_drop_last": str(eval_drop_last),
                 "test_drop_last": str(test_drop_last),
+                "seeds": seeds,
                 "status": status,
                 "reason": parsed.reason,
                 "log_path": lp,
@@ -1534,6 +1774,233 @@ def generate_protocol_check_outputs(out_root: str, summary_df: pd.DataFrame, agg
     return csv_path, md_path
 
 
+def upsert_experiment_manifest(out_root: str, summary_df: pd.DataFrame, summary_path: str, agg_path: str) -> str:
+    manifest_path = os.path.join("results", "experiment_manifest.csv")
+    branch, commit = get_git_meta()
+    host = socket.gethostname()
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    rows = []
+
+    for _, r in summary_df.iterrows():
+        log_path = str(r.get("log_path", ""))
+        start_ts = parse_start_time(log_path)
+        if start_ts is None and log_path and os.path.exists(log_path):
+            start_ts = datetime.utcfromtimestamp(os.path.getmtime(log_path))
+        created = (start_ts.isoformat() + "Z") if start_ts is not None else now_iso
+        seed_val = r.get("seed", np.nan)
+        if pd.isna(seed_val):
+            seed_str = "NA"
+        else:
+            try:
+                seed_str = str(int(float(seed_val)))
+            except Exception:
+                seed_str = str(seed_val)
+        train_dl = int(pd.to_numeric(r.get("train_drop_last", -1), errors="coerce"))
+        eval_dl = int(pd.to_numeric(r.get("eval_drop_last", -1), errors="coerce"))
+        test_dl = int(pd.to_numeric(r.get("test_drop_last", -1), errors="coerce"))
+        protocol_tag = str(r.get("protocol_tag", make_protocol_tag(train_dl, eval_dl, test_dl)))
+        run_id = str(r.get("run_id", "")).strip()
+        if not run_id:
+            run_id = make_run_id(str(r.get("dataset", "")), float(r.get("missing", np.nan)), str(r.get("mode", "")),
+                                 seed_str, train_dl, eval_dl, test_dl, created_time=start_ts)
+
+        rows.append({
+            "run_id": run_id,
+            "created_time": created,
+            "server_name": host,
+            "git_branch": branch,
+            "git_commit": commit,
+            "dataset": r.get("dataset", np.nan),
+            "missing": r.get("missing", np.nan),
+            "mode": r.get("mode", np.nan),
+            "fusion_center_mode": r.get("fusion_center_mode", np.nan),
+            "seed": seed_str,
+            "protocol_tag": protocol_tag,
+            "train_drop_last": train_dl,
+            "eval_drop_last": eval_dl,
+            "test_drop_last": test_dl,
+            "train_batch_size": r.get("train_batch_size", np.nan),
+            "eval_batch_size": r.get("eval_batch_size", np.nan),
+            "test_batch_size": r.get("test_batch_size", np.nan),
+            "router_missing_bias": r.get("router_missing_bias", np.nan),
+            "task_router_lambda": r.get("task_router_lambda", np.nan),
+            "center_aux_lambda": r.get("center_aux_lambda", np.nan),
+            "router_oracle_temperature": r.get("router_oracle_temperature", np.nan),
+            "router_oracle_type": r.get("router_oracle_type", np.nan),
+            "gate_balance_lambda": r.get("gate_balance_lambda", np.nan),
+            "gate_target": r.get("gate_target", np.nan),
+            "use_task_aware_router": r.get("use_task_aware_router", np.nan),
+            "use_reliability_task_gate": r.get("use_reliability_task_gate", np.nan),
+            "export_anchor_weights": r.get("export_anchor_weights", np.nan),
+            "export_task_router_info": r.get("export_task_router_info", np.nan),
+            "output_dir": r.get("output_dir", out_root),
+            "log_path": log_path,
+            "summary_csv": summary_path,
+            "agg_csv": agg_path,
+            "status": r.get("status", np.nan),
+        })
+
+    new_df = pd.DataFrame(rows)
+    if os.path.exists(manifest_path):
+        try:
+            old_df = pd.read_csv(manifest_path)
+        except Exception:
+            old_df = pd.DataFrame()
+        if not old_df.empty:
+            new_df = pd.concat([old_df, new_df], ignore_index=True, sort=False)
+            # Normalize key dtypes before dedup.
+            if "seed" in new_df.columns:
+                new_df["seed"] = new_df["seed"].astype(str)
+            if "dataset" in new_df.columns:
+                new_df["dataset"] = new_df["dataset"].astype(str)
+            if "mode" in new_df.columns:
+                new_df["mode"] = new_df["mode"].astype(str)
+            if "output_dir" in new_df.columns:
+                new_df["output_dir"] = new_df["output_dir"].astype(str)
+            if "missing" in new_df.columns:
+                new_df["missing"] = pd.to_numeric(new_df["missing"], errors="coerce")
+            new_df = new_df.drop_duplicates(subset=["run_id"], keep="last")
+            # Also deduplicate by semantic experiment key to avoid stale protocol=-1 rows.
+            if {"dataset", "missing", "mode", "seed", "output_dir"}.issubset(new_df.columns):
+                def _valid_dl(r):
+                    try:
+                        t = int(float(r.get("train_drop_last", -1)))
+                        e = int(float(r.get("eval_drop_last", -1)))
+                        x = int(float(r.get("test_drop_last", -1)))
+                    except Exception:
+                        return 0
+                    return int(t in [0, 1] and e in [0, 1] and x in [0, 1])
+                new_df["_valid_dl"] = new_df.apply(_valid_dl, axis=1)
+                new_df = new_df.sort_values(["_valid_dl", "created_time"], ascending=[True, True])
+                new_df = new_df.drop_duplicates(subset=["dataset", "missing", "mode", "seed", "output_dir"], keep="last")
+                new_df = new_df.drop(columns=["_valid_dl"])
+    new_df = new_df.sort_values(["dataset", "missing", "mode", "seed"], na_position="last").reset_index(drop=True)
+    new_df.to_csv(manifest_path, index=False, float_format="%.6f")
+    return manifest_path
+
+
+def build_result_source_report() -> str:
+    report_path = os.path.join("results", "result_source_report.md")
+    official_paths = [
+        "results/auto_anchor_runs_fulltest/anchor_experiment_agg.csv",
+        "results/auto_anchor_runs_taskrouter_final/final_main_comparison.csv",
+        "results/auto_anchor_runs_rta/anchor_experiment_agg.csv",
+        "results/auto_anchor_runs_rta/rta_final_comparison.csv",
+    ]
+    paper_allowed = [
+        "results/auto_anchor_runs_fulltest/anchor_experiment_agg.csv",
+        "results/auto_anchor_runs_taskrouter_final/final_main_comparison.csv",
+        "results/auto_anchor_runs_rta/rta_final_comparison.csv",
+    ]
+    debug_only = ["results/results/normals/*.csv"]
+
+    lines = ["# Result Source Report", ""]
+    lines.append("## 1. Paper Table Eligible Sources")
+    for p in paper_allowed:
+        exists = os.path.exists(p)
+        lines.append(f"- {'OK' if exists else 'MISSING'}: `{p}`")
+    lines.append("")
+    lines.append("## 2. Debug-Only Sources")
+    lines.append("- `results/results/normals/*.csv`")
+    lines.append("- WARNING: normals CSV does not contain sufficient experiment metadata and should not be used for paper tables.")
+    lines.append("")
+
+    lines.append("## 3. Official CSV Audit")
+    hard_fail = False
+    for p in official_paths:
+        lines.append(f"### `{p}`")
+        if not os.path.exists(p):
+            lines.append("- **MISSING**")
+            if p in paper_allowed:
+                hard_fail = True
+            lines.append("")
+            continue
+        try:
+            df = pd.read_csv(p)
+        except Exception as e:
+            lines.append(f"- **READ ERROR**: `{e}`")
+            lines.append("")
+            continue
+
+        cols = list(df.columns)
+        lines.append(f"- rows: `{len(df)}`")
+        lines.append(f"- columns: `{cols}`")
+        has_missing = "missing" in cols
+        has_mode_like = ("mode" in cols) or ("method" in cols)
+        # support mean columns in agg files
+        has_mae = ("MAE" in cols) or ("MAE_mean" in cols)
+        has_corr = ("Corr" in cols) or ("Corr_mean" in cols)
+        has_acc = ("Non0_acc_2" in cols) or ("Non0_acc_2_mean" in cols)
+        has_f1 = ("Non0_F1_score" in cols) or ("Non0_F1_score_mean" in cols)
+
+        lines.append(f"- field check missing: {'OK' if has_missing else 'MISSING'}")
+        lines.append(f"- field check mode/method: {'OK' if has_mode_like else 'MISSING'}")
+        lines.append(f"- field check MAE: {'OK' if has_mae else 'MISSING'}")
+        lines.append(f"- field check Corr: {'OK' if has_corr else 'MISSING'}")
+        lines.append(f"- field check Non0_acc_2: {'OK' if has_acc else 'MISSING'}")
+        lines.append(f"- field check Non0_F1_score: {'OK' if has_f1 else 'MISSING'}")
+        if has_missing:
+            try:
+                miss_vals = sorted(pd.to_numeric(df["missing"], errors="coerce").dropna().unique().tolist())
+                lines.append(f"- missing coverage: `{miss_vals}`")
+                if len(miss_vals) == 0:
+                    hard_fail = True
+            except Exception:
+                lines.append("- missing coverage: `N/A`")
+                hard_fail = True
+        if "mode" in cols:
+            lines.append(f"- mode coverage: `{sorted(df['mode'].dropna().astype(str).unique().tolist())}`")
+        elif "method" in cols:
+            lines.append(f"- method coverage: `{sorted(df['method'].dropna().astype(str).unique().tolist())}`")
+
+        if not (has_missing and has_mode_like and has_mae and has_corr and has_acc and has_f1):
+            hard_fail = True
+            lines.append("- **BLOCKER**: metadata/metric fields are insufficient for safe paper-table generation.")
+        lines.append("")
+
+    lines.append("## 4. Duplicate / Protocol Mixing Risk")
+    fp = "results/auto_anchor_runs_fulltest/anchor_experiment_agg.csv"
+    if os.path.exists(fp):
+        try:
+            fa = pd.read_csv(fp)
+            if {"missing", "mode", "train_drop_last", "eval_drop_last", "test_drop_last"}.issubset(fa.columns):
+                mix = fa.groupby(["missing", "mode"], as_index=False).agg(
+                    protocol_count=("train_drop_last", lambda s: len(set(zip(
+                        s.tolist(),
+                        fa.loc[s.index, "eval_drop_last"].tolist(),
+                        fa.loc[s.index, "test_drop_last"].tolist(),
+                    ))))
+                )
+                mixed = mix[mix["protocol_count"] > 1]
+                if mixed.empty:
+                    lines.append("- No protocol mixing detected in fulltest agg by `(missing, mode)`.")
+                else:
+                    lines.append("- **Risk**: mixed protocols detected:")
+                    lines.append("")
+                    lines.append(mixed.to_markdown(index=False))
+            else:
+                lines.append("- Protocol columns not present in fulltest agg; cannot verify mixing.")
+        except Exception as e:
+            lines.append(f"- Unable to check protocol mixing: `{e}`")
+    else:
+        lines.append("- fulltest agg missing; cannot check protocol mixing.")
+    lines.append("")
+
+    lines.append("## 5. Recommendation")
+    if hard_fail:
+        lines.append("- **Do not generate final paper LaTeX tables yet.** Resolve missing official fields/files first.")
+    else:
+        lines.append("- Safe paper sources (priority):")
+        lines.append("  1. `results/auto_anchor_runs_fulltest/anchor_experiment_agg.csv`")
+        lines.append("  2. `results/auto_anchor_runs_taskrouter_final/final_main_comparison.csv`")
+        lines.append("  3. `results/auto_anchor_runs_rta/rta_final_comparison.csv`")
+        lines.append("- Do not use `results/results/normals/*.csv` except debugging.")
+
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return report_path
+
+
 def main():
     args = parse_args()
     out_root = args.output_dir
@@ -1641,6 +2108,19 @@ def main():
         summary_df = build_official_summary(raw_summary_df, seed_list)
     else:
         summary_df = raw_summary_df
+
+    required_summary_cols = [
+        "run_id", "protocol_tag", "fusion_center_mode",
+        "task_router_lambda", "center_aux_lambda", "router_oracle_temperature", "router_oracle_type",
+        "router_missing_bias", "gate_balance_lambda", "gate_target",
+        "use_task_aware_router", "use_reliability_task_gate",
+        "export_anchor_weights", "export_task_router_info",
+        "train_batch_size", "eval_batch_size", "test_batch_size",
+        "output_dir",
+    ]
+    for c in required_summary_cols:
+        if c not in summary_df.columns:
+            summary_df[c] = np.nan
     agg_df = build_agg(summary_df)
     delta_df = build_delta_vs_text(agg_df)
     router_df = analyze_anchor_router(output_dir=out_root, missing_filter=missing_list)
@@ -1696,6 +2176,8 @@ def main():
         agg_df.to_csv(protocol_agg_path, index=False, float_format="%.6f")
         progress_df.to_csv(protocol_progress_path, index=False)
         failed_df.to_csv(protocol_failed_path, index=False)
+        manifest_path = upsert_experiment_manifest(out_root, summary_df, protocol_summary_path, protocol_agg_path)
+        source_report_path = build_result_source_report()
         protocol_csv_path, protocol_md_path = generate_protocol_check_outputs(out_root, summary_df, agg_df)
         print("Saved:")
         print("-", protocol_summary_path)
@@ -1704,6 +2186,8 @@ def main():
         print("-", protocol_failed_path)
         print("-", protocol_csv_path)
         print("-", protocol_md_path)
+        print("-", manifest_path)
+        print("-", source_report_path)
         return
 
     summary_path = os.path.join(out_root, "anchor_experiment_summary.csv")
@@ -1721,7 +2205,10 @@ def main():
     summary_df.to_csv(summary_path, index=False, float_format="%.6f")
     if agg_df.empty:
         agg_df = pd.DataFrame(columns=[
-            "dataset", "phase", "missing", "mode", "train_drop_last", "eval_drop_last", "test_drop_last",
+            "dataset", "phase", "missing", "mode", "protocol_tag",
+            "train_drop_last", "eval_drop_last", "test_drop_last",
+            "task_router_lambda", "center_aux_lambda", "router_oracle_temperature", "router_oracle_type",
+            "gate_balance_lambda", "gate_target",
             "MAE_mean", "MAE_std",
             "Corr_mean", "Corr_std",
             "Non0_acc_2_mean", "Non0_acc_2_std",
@@ -1733,7 +2220,7 @@ def main():
     agg_df.to_csv(agg_path, index=False, float_format="%.6f")
     if delta_df.empty:
         delta_df = pd.DataFrame(columns=[
-            "dataset", "phase", "missing", "mode", "train_drop_last", "eval_drop_last", "test_drop_last",
+            "dataset", "phase", "missing", "mode", "protocol_tag", "train_drop_last", "eval_drop_last", "test_drop_last",
             "MAE_mean", "MAE_text", "delta_MAE",
             "Corr_mean", "Corr_text", "delta_Corr",
             "Non0_acc_2_mean", "Non0_acc_2_text", "delta_Non0_acc_2",
@@ -1823,6 +2310,11 @@ def main():
     if protocol_csv_path and protocol_md_path:
         print("-", protocol_csv_path)
         print("-", protocol_md_path)
+
+    manifest_path = upsert_experiment_manifest(out_root, summary_df, summary_path, agg_path)
+    source_report_path = build_result_source_report()
+    print("-", manifest_path)
+    print("-", source_report_path)
 
 
 if __name__ == "__main__":
