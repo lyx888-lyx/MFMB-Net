@@ -1,0 +1,3 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.400000,dynamic_rta,1.054900,dynamic_rta,0.550900,dynamic_rta,0.736300,dynamic_rta,0.736800
+0.500000,dynamic_rta,1.124900,dynamic_rta,0.482800,dynamic_rta,0.705800,dynamic_rta,0.707200

@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcccccccc}
+\toprule
+Method & MAE$_{avg}$ & Corr$_{avg}$ & Non0 Acc-2$_{avg}$ & Non0 F1$_{avg}$ & Mult5$_{avg}$ & Mult7$_{avg}$ & AvgRank$_{core}$ & AvgRank$_{all}$ \\
+\midrule
+Ours & \textbf{1.3882} & 0.1906 & 0.5517 & \underline{0.6023} & \underline{0.1968} & \underline{0.1932} & \underline{2.1500} & \underline{2.1000} \\
+Dynamic Soft & 1.4425 & 0.1653 & 0.5078 & 0.5950 & 0.1815 & 0.1785 & 3.4000 & 3.4500 \\
+Text center & \underline{1.3893} & \underline{0.2026} & \textbf{0.5705} & \textbf{0.6050} & \textbf{0.2062} & \textbf{0.1985} & \textbf{2.0500} & \textbf{2.0000} \\
+Vision center & 1.4041 & \textbf{0.2280} & \underline{0.5558} & 0.6010 & 0.1964 & 0.1915 & 2.4000 & 2.4500 \\
+\bottomrule
+\end{tabular}
+\caption{Average metrics and average ranks over stress missing rates 0.6--1.0.}
+\label{tab:stress_avg_summary}
+\end{table}

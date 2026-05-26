@@ -180,7 +180,7 @@ def parse_args():
     parser.add_argument('--missing_v', type=float, default=None)
 
     parser.add_argument('--fusion_center_mode', type=str, default='text',
-                        choices=['text', 'audio', 'vision', 'dynamic_soft', 'dynamic_hard', 'dynamic_task_soft', 'dynamic_rta'])
+                        choices=['text', 'audio', 'vision', 'dynamic_soft', 'dynamic_hard', 'dynamic_task_soft', 'dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual'])
     parser.add_argument('--use_anchor_moe', type=int, default=0)
     parser.add_argument('--router_hidden_dim', type=int, default=64)
     parser.add_argument('--router_dropout', type=float, default=0.1)
@@ -198,11 +198,19 @@ def parse_args():
     parser.add_argument('--export_task_router_info', type=int, default=0)
     parser.add_argument('--task_router_output_dir', type=str, default='results/task_router_analysis')
     parser.add_argument('--use_reliability_task_gate', type=int, default=0)
+    parser.add_argument('--rta_gate_mode', type=str, default='learned',
+                        choices=['learned', 'force_rel', 'force_task', 'fixed_half'])
     parser.add_argument('--gate_hidden_dim', type=int, default=32)
     parser.add_argument('--gate_dropout', type=float, default=0.1)
-    parser.add_argument('--gate_init_bias', type=float, default=0.0)
+    parser.add_argument('--gate_init_bias', type=float, default=-2.0)
     parser.add_argument('--gate_balance_lambda', type=float, default=0.0)
     parser.add_argument('--gate_target', type=float, default=0.5)
+    parser.add_argument('--use_prediction_gate_supervision', type=int, default=1)
+    parser.add_argument('--gate_oracle_temperature', type=float, default=0.8)
+    parser.add_argument('--gate_task_lambda', type=float, default=0.02)
+    parser.add_argument('--rta_pred_residual', type=int, default=0)
+    parser.add_argument('--gate_supervision_mode', type=str, default='full', choices=['full', 'margin'])
+    parser.add_argument('--gate_margin', type=float, default=0.05)
     parser.add_argument('--train_drop_last', type=int, default=1,
                         help='whether to drop last incomplete train batch (1/0)')
     parser.add_argument('--eval_drop_last', type=int, default=0,

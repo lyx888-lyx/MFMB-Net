@@ -254,8 +254,15 @@ class GATE_F(nn.Module):
         self.router_oracle_type = str(getattr(args, 'router_oracle_type', 'soft')).lower()
         self.router_task_detach_oracle = bool(getattr(args, 'router_task_detach_oracle', 1))
         self.use_reliability_task_gate = bool(getattr(args, 'use_reliability_task_gate', 0))
+        self.rta_gate_mode = str(getattr(args, 'rta_gate_mode', 'learned')).lower()
         self.gate_balance_lambda = float(getattr(args, 'gate_balance_lambda', 0.0))
         self.gate_target = float(getattr(args, 'gate_target', 0.5))
+        self.use_prediction_gate_supervision = bool(getattr(args, 'use_prediction_gate_supervision', 1))
+        self.gate_oracle_temperature = float(getattr(args, 'gate_oracle_temperature', 0.8))
+        self.gate_task_lambda = float(getattr(args, 'gate_task_lambda', 0.02))
+        self.rta_pred_residual = bool(getattr(args, 'rta_pred_residual', 0))
+        self.gate_supervision_mode = str(getattr(args, 'gate_supervision_mode', 'full')).lower()
+        self.gate_margin = float(getattr(args, 'gate_margin', 0.05))
 
         self.text_encoder = C_GATE(args.fusion_t_in, args.fusion_t_hid, args.fusion_gru_layers, args.fusion_drop)
         self.audio_encoder = C_GATE(args.fusion_a_in, args.fusion_a_hid, args.fusion_gru_layers, args.fusion_drop)
@@ -297,9 +304,10 @@ class GATE_F(nn.Module):
             dropout=float(getattr(args, 'router_dropout', 0.1)),
         )
         # gate_input = availability(3) + entropies(2) + max_conf(2)
-        #            + disagreement(1) + pred_std/pred_range(2)
+        #            + disagreement(1) + route_gap_or_dummy(1) + pred_std/pred_range(2)
+        # Keep a unified dimensionality for dynamic_rta and dynamic_rta_pred.
         self.reliability_task_gate = ReliabilityTaskGate(
-            input_dim=10,
+            input_dim=11,
             hidden_dim=int(getattr(args, 'gate_hidden_dim', 32)),
             dropout=float(getattr(args, 'gate_dropout', 0.1)),
             init_bias=float(getattr(args, 'gate_init_bias', 0.0)),
@@ -492,6 +500,37 @@ class GATE_F(nn.Module):
 
         return center_aux_loss, router_task_loss, center_err, oracle_weight, oracle_label
 
+    def _build_prediction_gate_supervision(self, y, pred_rel, pred_task, gate_task):
+        # Two-route oracle: rel vs task prediction errors.
+        err_rel = torch.abs(pred_rel - y)
+        err_task = torch.abs(pred_task - y)
+        err_pair = torch.cat([err_rel, err_task], dim=1)
+        err_for_oracle = err_pair.detach() if self.router_task_detach_oracle else err_pair
+        oracle_gate = torch.softmax(
+            -err_for_oracle / max(self.gate_oracle_temperature, 1e-6),
+            dim=-1,
+        )
+        gate_pred = torch.cat([1.0 - gate_task, gate_task], dim=1)
+        abs_err_diff = torch.abs(err_rel - err_task)
+        gate_margin_mask = (abs_err_diff > self.gate_margin).squeeze(-1)
+        if self.gate_supervision_mode == 'margin':
+            if gate_margin_mask.any():
+                gate_task_loss = F.kl_div(
+                    torch.log(gate_pred[gate_margin_mask] + 1e-8),
+                    oracle_gate[gate_margin_mask],
+                    reduction='batchmean',
+                )
+            else:
+                gate_task_loss = torch.tensor(0.0, device=gate_task.device)
+        else:
+            gate_task_loss = F.kl_div(
+                torch.log(gate_pred + 1e-8),
+                oracle_gate,
+                reduction='batchmean',
+            )
+        oracle_gate_label = torch.argmax(oracle_gate, dim=-1)
+        return gate_task_loss, err_rel, err_task, oracle_gate, oracle_gate_label, abs_err_diff, gate_margin_mask
+
     def _project_for_av_fusion(self, audio_x, vision_x):
         # keep original behavior for MOSI and be compatible with MOSEI
         if str(getattr(self.args, 'datasetName', 'mosi')).lower() == 'mosei':
@@ -565,6 +604,8 @@ class GATE_F(nn.Module):
         feat_v = torch.cat(feat_base + [h_vision_center, audio_visual_fusion], dim=1)
 
         pred_t = pred_a = pred_v = None
+        pred_rel = None
+        pred_task_route = None
         task_router_logits = None
         task_router_weights = None
         weighted_micro_task = None
@@ -576,14 +617,15 @@ class GATE_F(nn.Module):
         entropy_task = None
         pred_std = None
         pred_range = None
+        abs_pred_rel_task = None
         weighted_micro_final = weighted_micro_rel
 
-        if center_mode in ['dynamic_task_soft', 'dynamic_rta']:
+        if center_mode in ['dynamic_task_soft', 'dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual']:
             # Center-specific auxiliary predictions are used to build task-aware router supervision.
             pred_t = self.center_aux_text(feat_t)
             pred_a = self.center_aux_audio(feat_a)
             pred_v = self.center_aux_vision(feat_v)
-            if center_mode == 'dynamic_rta':
+            if center_mode in ['dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual']:
                 task_router_logits, task_router_weights, _ = self._resolve_task_router_weights(
                     text_rep_common,
                     audio_rep_common,
@@ -609,31 +651,78 @@ class GATE_F(nn.Module):
                     - torch.min(center_preds, dim=1, keepdim=True)[0]
                 )
 
-                gate_input = torch.cat(
-                    [
-                        availability,
-                        entropy_rel,
-                        entropy_task,
-                        max_w_rel,
-                        max_w_task,
-                        router_disagreement,
-                        pred_std,
-                        pred_range,
-                    ],
-                    dim=1,
-                )
-                if self.use_reliability_task_gate:
-                    gate_logit, gate_task = self.reliability_task_gate(gate_input)
+                if center_mode in ['dynamic_rta_pred', 'dynamic_rta_pred_residual']:
+                    feat_rel = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_rel, audio_visual_fusion), dim=1)
+                    feat_task = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_task, audio_visual_fusion), dim=1)
+                    pred_rel = self.classifier2(feat_rel)
+                    pred_task_route = self.classifier2(feat_task)
+                    abs_pred_rel_task = torch.abs(pred_rel - pred_task_route)
+                    gate_input = torch.cat(
+                        [
+                            availability,
+                            entropy_rel,
+                            entropy_task,
+                            max_w_rel,
+                            max_w_task,
+                            router_disagreement,
+                            abs_pred_rel_task,
+                            pred_std,
+                            pred_range,
+                        ],
+                        dim=1,
+                    )
                 else:
+                    # For feature-level RTA we keep gate input dimensionality aligned
+                    # with prediction-level RTA by using a zero dummy route-gap feature.
+                    dummy_route_gap = torch.zeros_like(pred_std)
+                    gate_input = torch.cat(
+                        [
+                            availability,
+                            entropy_rel,
+                            entropy_task,
+                            max_w_rel,
+                            max_w_task,
+                            router_disagreement,
+                            dummy_route_gap,
+                            pred_std,
+                            pred_range,
+                        ],
+                        dim=1,
+                    )
+
+                # Gate ablations for feature/prediction-level RTA.
+                gm = self.rta_gate_mode
+                if gm == 'force_rel':
+                    gate_task = torch.zeros_like(max_w_rel)
+                    gate_logit = torch.full_like(max_w_rel, -20.0)
+                elif gm == 'force_task':
+                    gate_task = torch.ones_like(max_w_rel)
+                    gate_logit = torch.full_like(max_w_rel, 20.0)
+                elif gm == 'fixed_half':
                     gate_task = torch.full_like(max_w_rel, 0.5)
-                    gate_logit = torch.zeros_like(gate_task)
+                    gate_logit = torch.zeros_like(max_w_rel)
+                else:
+                    if self.use_reliability_task_gate:
+                        gate_logit, gate_task = self.reliability_task_gate(gate_input)
+                    else:
+                        gate_task = torch.full_like(max_w_rel, 0.5)
+                        gate_logit = torch.zeros_like(gate_task)
                 gate_rel = 1.0 - gate_task
-                weighted_micro_final = gate_rel * weighted_micro_rel + gate_task * weighted_micro_task
+
+                if center_mode in ['dynamic_rta_pred', 'dynamic_rta_pred_residual']:
+                    if center_mode == 'dynamic_rta_pred_residual' or self.rta_pred_residual:
+                        pred = pred_rel + gate_task * (pred_task_route - pred_rel)
+                    else:
+                        pred = gate_rel * pred_rel + gate_task * pred_task_route
+                    weighted_micro_final = weighted_micro_rel
+                else:
+                    weighted_micro_final = gate_rel * weighted_micro_rel + gate_task * weighted_micro_task
+                    utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_final, audio_visual_fusion), dim=1)
+                    pred = self.classifier2(utterance_rep)
             else:
                 weighted_micro_final = weighted_micro_rel
-
-            utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_final, audio_visual_fusion), dim=1)
-            pred = self.classifier2(utterance_rep)
+                utterance_rep = torch.cat((text_rep, audio_rep, vision_rep, weighted_micro_final, audio_visual_fusion), dim=1)
+                pred = self.classifier2(utterance_rep)
         elif self.use_anchor_moe:
             feat_base = [text_rep, audio_rep, vision_rep]
 
@@ -655,21 +744,26 @@ class GATE_F(nn.Module):
         task_aux_loss = torch.tensor(0.0, device=pred.device)
         center_aux_loss = torch.tensor(0.0, device=pred.device)
         router_task_loss = torch.tensor(0.0, device=pred.device)
+        gate_task_loss = torch.tensor(0.0, device=pred.device)
         gate_balance_loss = torch.tensor(0.0, device=pred.device)
         oracle_weight = None
         oracle_label = None
         center_err = None
+        gate_oracle = None
+        gate_oracle_label = None
+        err_rel = None
+        err_task = None
 
         # Task-aware router supervision is train-only and must not use labels at inference time.
         if (
-            center_mode == 'dynamic_task_soft'
+            center_mode in ['dynamic_task_soft', 'dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual']
             and self.use_task_aware_router
             and self.training
             and labels is not None
             and pred_t is not None
             and (
                 (center_mode == 'dynamic_task_soft' and router_logits is not None)
-                or (center_mode == 'dynamic_rta' and task_router_logits is not None)
+                or (center_mode in ['dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual'] and task_router_logits is not None)
             )
         ):
             y = labels
@@ -677,8 +771,12 @@ class GATE_F(nn.Module):
                 y = y.unsqueeze(-1)
             y = y.to(pred.device)
 
-            ref_logits = task_router_logits if center_mode == 'dynamic_rta' else router_logits
-            ref_weights = task_router_weights if center_mode == 'dynamic_rta' else router_weights
+            if center_mode in ['dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual']:
+                ref_logits = task_router_logits
+                ref_weights = task_router_weights
+            else:
+                ref_logits = router_logits
+                ref_weights = router_weights
 
             center_aux_loss, router_task_loss, center_err, oracle_weight, oracle_label = self._build_task_router_supervision(
                 y=y,
@@ -691,10 +789,31 @@ class GATE_F(nn.Module):
 
             task_aux_loss = self.center_aux_lambda * center_aux_loss + self.task_router_lambda * router_task_loss
 
-            if center_mode == 'dynamic_rta' and gate_task is not None and self.gate_balance_lambda > 0:
+            if center_mode in ['dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual'] and gate_task is not None and self.gate_balance_lambda > 0:
                 mean_g = torch.mean(gate_task)
                 gate_balance_loss = (mean_g - self.gate_target) ** 2
                 task_aux_loss = task_aux_loss + self.gate_balance_lambda * gate_balance_loss
+
+            if (
+                center_mode in ['dynamic_rta_pred', 'dynamic_rta_pred_residual']
+                and self.use_prediction_gate_supervision
+                and gate_task is not None
+                and pred_rel is not None
+                and pred_task_route is not None
+            ):
+                gate_task_loss, err_rel, err_task, gate_oracle, gate_oracle_label, abs_err_diff, gate_margin_mask = self._build_prediction_gate_supervision(
+                    y=y,
+                    pred_rel=pred_rel,
+                    pred_task=pred_task_route,
+                    gate_task=gate_task,
+                )
+                task_aux_loss = task_aux_loss + self.gate_task_lambda * gate_task_loss
+            else:
+                abs_err_diff = None
+                gate_margin_mask = None
+        else:
+            abs_err_diff = None
+            gate_margin_mask = None
 
         self.last_router_info = {
             'router_weights': router_weights.detach(),
@@ -718,18 +837,28 @@ class GATE_F(nn.Module):
             'router_disagreement': router_disagreement.detach() if router_disagreement is not None else None,
             'pred_std': pred_std.detach() if pred_std is not None else None,
             'pred_range': pred_range.detach() if pred_range is not None else None,
+            'abs_pred_rel_task': abs_pred_rel_task.detach() if abs_pred_rel_task is not None else None,
             'h_rel': weighted_micro_rel.detach(),
             'h_task': weighted_micro_task.detach() if weighted_micro_task is not None else None,
             'h_ours': weighted_micro_final.detach(),
+            'pred_rel': pred_rel.detach() if pred_rel is not None else None,
+            'pred_task_route': pred_task_route.detach() if pred_task_route is not None else None,
+            'gate_oracle': gate_oracle.detach() if gate_oracle is not None else None,
+            'gate_oracle_label': gate_oracle_label.detach() if gate_oracle_label is not None else None,
+            'err_rel': err_rel.detach() if err_rel is not None else None,
+            'err_task': err_task.detach() if err_task is not None else None,
+            'abs_err_diff': abs_err_diff.detach() if abs_err_diff is not None else None,
+            'gate_margin_mask': gate_margin_mask.detach() if gate_margin_mask is not None else None,
+            'gate_task_loss': gate_task_loss.detach() if gate_task_loss is not None else None,
             'gate_balance_loss': gate_balance_loss.detach() if gate_balance_loss is not None else None,
         }
 
         aux_total = task_aux_loss
-        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard', 'dynamic_task_soft', 'dynamic_rta']:
+        if self.router_balance_lambda > 0 and self.fusion_center_mode in ['dynamic_soft', 'dynamic_hard', 'dynamic_task_soft', 'dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual']:
             balance_loss = self._router_balance_loss(router_weights)
             aux_total = aux_total + self.router_balance_lambda * balance_loss
 
-        if self.fusion_center_mode in ['dynamic_task_soft', 'dynamic_rta'] or aux_total.abs().item() > 0:
+        if self.fusion_center_mode in ['dynamic_task_soft', 'dynamic_rta', 'dynamic_rta_pred', 'dynamic_rta_pred_residual'] or aux_total.abs().item() > 0:
             return pred, aux_total
         return pred
 

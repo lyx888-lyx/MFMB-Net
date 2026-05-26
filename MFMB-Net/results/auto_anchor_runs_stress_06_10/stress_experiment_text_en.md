@@ -1,0 +1,4 @@
+We further conduct an extreme missing-rate stress test over 0.6-1.0 under the full-test protocol (train_drop_last=1, eval_drop_last=0, test_drop_last=0) on all 686 MOSI test samples.
+In terms of MAE, Ours outperforms Dynamic Soft on 4/5 missing rates, Vision center on 4/5 rates, and Text center on 3/5 rates, indicating that Ours alleviates high-missing degradation in most settings.
+At missing=1.0, all methods degrade substantially and correlation may approach zero or become negative, which is an expected robustness boundary under extreme missing rather than evidence of universal failure of one method.
+Therefore, this stress test is used for robustness-boundary analysis, while the main comparison should still focus on the 0.1-0.5 range.

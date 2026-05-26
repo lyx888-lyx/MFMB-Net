@@ -1,0 +1,42 @@
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{c l c c c c}
+\toprule
+missing & method & MAE & Corr & Non0_acc_2 & Non0_F1_score \\ 
+\midrule
+0.1 & Text center & 0.8925 & 0.7303 & \underline{0.8049} & \underline{0.8046} \\ 
+0.1 & Audio center & 0.8850 & 0.7311 & 0.8018 & 0.8026 \\ 
+0.1 & Vision center & \textbf{0.8502} & \textbf{0.7377} & 0.8044 & 0.8037 \\ 
+0.1 & Dynamic Soft & \underline{0.8649} & \underline{0.7350} & 0.8044 & 0.8039 \\ 
+0.1 & Task-aware Dynamic & 0.8828 & 0.7238 & \textbf{0.8064} & \textbf{0.8077} \\ 
+0.1 & Ours & 0.9068 & 0.7181 & 0.7932 & 0.7924 \\ 
+0.2 & Text center & 1.0314 & 0.6575 & 0.7586 & 0.7577 \\ 
+0.2 & Audio center & \underline{0.9397} & \textbf{0.6758} & 0.7729 & 0.7720 \\ 
+0.2 & Vision center & 0.9421 & \underline{0.6724} & \textbf{0.7856} & \textbf{0.7854} \\ 
+0.2 & Dynamic Soft & 1.0409 & 0.6402 & 0.7673 & 0.7667 \\ 
+0.2 & Task-aware Dynamic & 1.0936 & 0.6547 & 0.7444 & 0.7444 \\ 
+0.2 & Ours & \textbf{0.9356} & 0.6700 & \underline{0.7845} & \underline{0.7844} \\ 
+0.3 & Text center & 1.0770 & 0.6167 & 0.7292 & 0.7334 \\ 
+0.3 & Audio center & 1.0846 & 0.6113 & 0.7449 & 0.7457 \\ 
+0.3 & Vision center & \textbf{0.9724} & \textbf{0.6202} & \textbf{0.7647} & \textbf{0.7673} \\ 
+0.3 & Dynamic Soft & 1.0610 & 0.6053 & 0.7409 & 0.7395 \\ 
+0.3 & Task-aware Dynamic & 1.0803 & 0.5968 & 0.7332 & 0.7356 \\ 
+0.3 & Ours & \underline{1.0224} & \underline{0.6168} & \underline{0.7485} & \underline{0.7475} \\ 
+0.4 & Text center & 1.1059 & \underline{0.5497} & 0.7053 & 0.7045 \\ 
+0.4 & Audio center & 1.1347 & 0.5334 & 0.7114 & 0.7102 \\ 
+0.4 & Vision center & 1.2219 & 0.5241 & 0.7022 & 0.7049 \\ 
+0.4 & Dynamic Soft & \underline{1.0921} & \textbf{0.5524} & \textbf{0.7266} & \textbf{0.7251} \\ 
+0.4 & Task-aware Dynamic & \textbf{1.0896} & 0.5194 & \underline{0.7256} & \underline{0.7248} \\ 
+0.4 & Ours & 1.1534 & 0.5352 & 0.7088 & 0.7095 \\ 
+0.5 & Text center & 1.2593 & \underline{0.4647} & 0.6626 & 0.6668 \\ 
+0.5 & Audio center & 1.2776 & 0.4560 & 0.6458 & 0.6526 \\ 
+0.5 & Vision center & 1.2494 & 0.4619 & 0.6707 & 0.6763 \\ 
+0.5 & Dynamic Soft & 1.2988 & 0.3788 & 0.6240 & 0.6411 \\ 
+0.5 & Task-aware Dynamic & \underline{1.2121} & \textbf{0.4663} & \underline{0.6855} & \underline{0.6861} \\ 
+0.5 & Ours & \textbf{1.1875} & 0.4542 & \textbf{0.6946} & \textbf{0.7010} \\ 
+\bottomrule
+\end{tabular}
+\caption{Full-test protocol: train_drop_last=1, eval_drop_last=0, test_drop_last=0. The MOSI test set is evaluated on all 686 samples.}
+\label{tab:residual_main_compact}
+\end{table*}

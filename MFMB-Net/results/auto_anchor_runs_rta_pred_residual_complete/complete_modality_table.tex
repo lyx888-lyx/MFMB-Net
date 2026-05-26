@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccccccc}
+\toprule
+Missing & Method & MAE & Corr & Non0 Acc-2 & Non0 F1 & Mult Acc-5 & Mult Acc-7 \\
+\midrule
+0.0 & text & N/A & N/A & N/A & N/A & N/A & N/A \\
+0.0 & audio & N/A & N/A & N/A & N/A & N/A & N/A \\
+0.0 & vision & N/A & N/A & N/A & N/A & N/A & N/A \\
+0.0 & dynamic\_soft & N/A & N/A & N/A & N/A & N/A & N/A \\
+0.0 & dynamic\_task\_soft\_tuned & N/A & N/A & N/A & N/A & N/A & N/A \\
+0.0 & dynamic\_rta\_pred\_residual & \textbf{0.8811} & \textbf{0.7644} & \textbf{0.8293} & \textbf{0.8292} & \textbf{0.4213} & \textbf{0.3712} \\
+\bottomrule
+\end{tabular}
+\caption{Complete modality comparison at missing=0.0 under the full-test protocol. Full-test protocol: train\_drop\_last=1, eval\_drop\_last=0, test\_drop\_last=0. MOSI test set is evaluated on all 686 samples.}
+\label{tab:complete_modality_mosi_fulltest}
+\end{table}

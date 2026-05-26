@@ -1,0 +1,28 @@
+# RTA Prediction-level Quick Report
+
+## Comparison (missing=0.4,0.5)
+
+```csv
+missing,method,MAE,Corr,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7
+0.400000,dynamic_soft,1.092133,0.552400,0.726633,0.725133,0.320667,0.289133
+0.400000,dynamic_task_soft_tuned,1.089600,0.519400,0.725600,0.724833,0.310033,0.292033
+0.400000,dynamic_rta_feature,1.180300,0.541400,0.695100,0.704300,0.248300,0.236633
+0.400000,dynamic_rta_pred,1.162500,0.549600,0.696600,0.700300,0.325100,0.284300
+0.400000,best_fixed,1.105867,0.549667,0.705267,0.704533,0.314367,0.280833
+0.500000,dynamic_soft,1.298767,0.378833,0.624000,0.641100,0.215267,0.209933
+0.500000,dynamic_task_soft_tuned,1.212133,0.466267,0.685467,0.686067,0.257533,0.241000
+0.500000,dynamic_rta_feature,1.188600,0.459033,0.686500,0.686800,0.288633,0.267267
+0.500000,dynamic_rta_pred,1.222600,0.478000,0.716500,0.714900,0.225900,0.218700
+0.500000,best_fixed,1.249433,0.461933,0.670733,0.676300,0.300767,0.271633
+```
+
+## Key Answers
+- missing=0.4: MAE rta_pred=1.1625, rta_feature=1.1803, dynamic_soft=1.0921, task_tuned=1.0896, best_fixed=1.1059
+- missing=0.5: MAE rta_pred=1.2226, rta_feature=1.1886, dynamic_soft=1.2988, task_tuned=1.2121, best_fixed=1.2494
+- dynamic_rta_pred better MAE than dynamic_rta_feature: 1/2 missing rates.
+
+## Acceptance Check
+- Check1 (0.4 MAE close to dynamic_soft): False
+- Check2 (0.5 MAE >=0.03 better than dynamic_soft): True
+- Check3 (0.5 Corr/F1 not obviously below task_tuned): True
+- Recommendation: do not scale yet; revise gate/oracle

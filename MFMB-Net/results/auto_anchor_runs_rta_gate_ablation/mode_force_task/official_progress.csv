@@ -1,0 +1,3 @@
+missing,mode,completed_seeds,expected_seeds,status,need_rerun,source_phase,log_path
+0.4,dynamic_rta,1,1,completed,0,full,results/auto_anchor_runs_rta_gate_ablation/mode_force_task/logs/mosi_m0.4_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.5,dynamic_rta,1,1,completed,0,full,results/auto_anchor_runs_rta_gate_ablation/mode_force_task/logs/mosi_m0.5_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log

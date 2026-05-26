@@ -1,0 +1,6 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.600000,dynamic_rta_pred_residual,1.285133,text,0.398900,text,0.649367,text,0.650767
+0.700000,text,1.276733,vision,0.340400,text,0.655967,text,0.656500
+0.800000,dynamic_rta_pred_residual,1.372167,dynamic_rta_pred_residual,0.224233,dynamic_rta_pred_residual,0.586900,dynamic_rta_pred_residual,0.593400
+0.900000,dynamic_rta_pred_residual,1.433267,dynamic_rta_pred_residual,0.164300,dynamic_rta_pred_residual,0.519300,vision,0.585600
+1.000000,text,1.465833,vision,0.056633,text,0.497467,dynamic_rta_pred_residual,0.593800

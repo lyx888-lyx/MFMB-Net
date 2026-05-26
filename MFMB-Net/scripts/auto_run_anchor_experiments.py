@@ -26,7 +26,7 @@ METRICS = [
     "Loss",
 ]
 DEFAULT_SEEDS = [111, 1111, 11111]
-SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft", "dynamic_rta"]
+SUPPORTED_MODES = ["text", "audio", "vision", "dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft", "dynamic_rta", "dynamic_rta_pred", "dynamic_rta_pred_residual"]
 
 
 @dataclass
@@ -84,6 +84,13 @@ def parse_args():
     parser.add_argument("--gate_hidden_dim", type=int, default=32)
     parser.add_argument("--gate_dropout", type=float, default=0.1)
     parser.add_argument("--gate_init_bias", type=float, default=0.0)
+    parser.add_argument("--rta_gate_mode", type=str, default="learned", choices=["learned", "force_rel", "force_task", "fixed_half"])
+    parser.add_argument("--use_prediction_gate_supervision", type=int, default=1)
+    parser.add_argument("--gate_oracle_temperature", type=float, default=0.8)
+    parser.add_argument("--gate_task_lambda", type=float, default=0.02)
+    parser.add_argument("--rta_pred_residual", type=int, default=0)
+    parser.add_argument("--gate_supervision_mode", type=str, default="full", choices=["full", "margin"])
+    parser.add_argument("--gate_margin", type=float, default=0.05)
     return parser.parse_args()
 
 
@@ -202,6 +209,13 @@ def mode_to_flags(
     gate_hidden_dim: int = 32,
     gate_dropout: float = 0.1,
     gate_init_bias: float = 0.0,
+    rta_gate_mode: str = "learned",
+    use_prediction_gate_supervision: int = 1,
+    gate_oracle_temperature: float = 0.8,
+    gate_task_lambda: float = 0.02,
+    rta_pred_residual: int = 0,
+    gate_supervision_mode: str = "full",
+    gate_margin: float = 0.05,
 ) -> Tuple[str, int, List[str]]:
     if mode == "text":
         return "text", 0, []
@@ -249,6 +263,7 @@ def mode_to_flags(
             "--gate_hidden_dim", str(gate_hidden_dim),
             "--gate_dropout", str(gate_dropout),
             "--gate_init_bias", str(gate_init_bias),
+            "--rta_gate_mode", str(rta_gate_mode),
         ]
         if int(export_anchor_weights) == 1:
             flags += ["--export_anchor_weights", "1"]
@@ -257,6 +272,61 @@ def mode_to_flags(
         if task_router_output_dir:
             flags += ["--task_router_output_dir", task_router_output_dir]
         return "dynamic_rta", 0, flags
+    if mode == "dynamic_rta_pred":
+        flags = [
+            "--router_missing_bias", str(router_missing_bias),
+            "--use_task_aware_router", "1",
+            "--use_reliability_task_gate", str(int(use_reliability_task_gate)),
+            "--use_prediction_gate_supervision", str(int(use_prediction_gate_supervision)),
+            "--task_router_lambda", str(task_router_lambda),
+            "--center_aux_lambda", str(center_aux_lambda),
+            "--router_oracle_temperature", str(router_oracle_temperature),
+            "--router_oracle_type", str(router_oracle_type),
+            "--gate_oracle_temperature", str(gate_oracle_temperature),
+            "--gate_task_lambda", str(gate_task_lambda),
+            "--gate_balance_lambda", str(gate_balance_lambda),
+            "--gate_target", str(gate_target),
+            "--gate_hidden_dim", str(gate_hidden_dim),
+            "--gate_dropout", str(gate_dropout),
+            "--gate_init_bias", str(gate_init_bias),
+            "--rta_gate_mode", str(rta_gate_mode),
+        ]
+        if int(export_anchor_weights) == 1:
+            flags += ["--export_anchor_weights", "1"]
+        if int(export_task_router_info) == 1:
+            flags += ["--export_task_router_info", "1"]
+        if task_router_output_dir:
+            flags += ["--task_router_output_dir", task_router_output_dir]
+        return "dynamic_rta_pred", 0, flags
+    if mode == "dynamic_rta_pred_residual":
+        flags = [
+            "--router_missing_bias", str(router_missing_bias),
+            "--use_task_aware_router", "1",
+            "--use_reliability_task_gate", str(int(use_reliability_task_gate)),
+            "--use_prediction_gate_supervision", str(int(use_prediction_gate_supervision)),
+            "--rta_pred_residual", str(int(rta_pred_residual)),
+            "--gate_supervision_mode", str(gate_supervision_mode),
+            "--gate_margin", str(gate_margin),
+            "--task_router_lambda", str(task_router_lambda),
+            "--center_aux_lambda", str(center_aux_lambda),
+            "--router_oracle_temperature", str(router_oracle_temperature),
+            "--router_oracle_type", str(router_oracle_type),
+            "--gate_oracle_temperature", str(gate_oracle_temperature),
+            "--gate_task_lambda", str(gate_task_lambda),
+            "--gate_balance_lambda", str(gate_balance_lambda),
+            "--gate_target", str(gate_target),
+            "--gate_hidden_dim", str(gate_hidden_dim),
+            "--gate_dropout", str(gate_dropout),
+            "--gate_init_bias", str(gate_init_bias),
+            "--rta_gate_mode", str(rta_gate_mode),
+        ]
+        if int(export_anchor_weights) == 1:
+            flags += ["--export_anchor_weights", "1"]
+        if int(export_task_router_info) == 1:
+            flags += ["--export_task_router_info", "1"]
+        if task_router_output_dir:
+            flags += ["--task_router_output_dir", task_router_output_dir]
+        return "dynamic_rta_pred_residual", 0, flags
     raise ValueError(f"Unsupported mode: {mode}")
 
 
@@ -282,6 +352,13 @@ def make_run_config(
     gate_hidden_dim: int = 32,
     gate_dropout: float = 0.1,
     gate_init_bias: float = 0.0,
+    rta_gate_mode: str = "learned",
+    use_prediction_gate_supervision: int = 1,
+    gate_oracle_temperature: float = 0.8,
+    gate_task_lambda: float = 0.02,
+    rta_pred_residual: int = 0,
+    gate_supervision_mode: str = "full",
+    gate_margin: float = 0.05,
 ) -> RunConfig:
     center_mode, use_moe, _ = mode_to_flags(
         mode,
@@ -299,6 +376,13 @@ def make_run_config(
         gate_hidden_dim=gate_hidden_dim,
         gate_dropout=gate_dropout,
         gate_init_bias=gate_init_bias,
+        rta_gate_mode=rta_gate_mode,
+        use_prediction_gate_supervision=use_prediction_gate_supervision,
+        gate_oracle_temperature=gate_oracle_temperature,
+        gate_task_lambda=gate_task_lambda,
+        rta_pred_residual=rta_pred_residual,
+        gate_supervision_mode=gate_supervision_mode,
+        gate_margin=gate_margin,
     )
     return RunConfig(
         dataset=dataset,
@@ -323,6 +407,16 @@ def detect_run_help_flags(python_bin: str) -> str:
 
 
 def build_command(cfg: RunConfig, args, seed_list: List[int], run_help_text: str) -> List[str]:
+    if args.task_router_output_dir:
+        task_router_dir = args.task_router_output_dir
+    elif cfg.mode == "dynamic_rta":
+        task_router_dir = os.path.join(args.output_dir, "rta_router_analysis")
+    elif cfg.mode == "dynamic_rta_pred":
+        task_router_dir = os.path.join(args.output_dir, "rta_pred_analysis")
+    elif cfg.mode == "dynamic_rta_pred_residual":
+        task_router_dir = os.path.join(args.output_dir, "rta_pred_residual_analysis")
+    else:
+        task_router_dir = os.path.join(args.output_dir, "task_router_analysis")
     _, _, extra_flags = mode_to_flags(
         cfg.mode,
         args.export_anchor_weights,
@@ -332,13 +426,20 @@ def build_command(cfg: RunConfig, args, seed_list: List[int], run_help_text: str
         center_aux_lambda=args.center_aux_lambda,
         router_oracle_temperature=args.router_oracle_temperature,
         router_oracle_type=args.router_oracle_type,
-        task_router_output_dir=(args.task_router_output_dir or os.path.join(args.output_dir, "task_router_analysis")),
+        task_router_output_dir=task_router_dir,
         use_reliability_task_gate=args.use_reliability_task_gate,
         gate_balance_lambda=args.gate_balance_lambda,
         gate_target=args.gate_target,
         gate_hidden_dim=args.gate_hidden_dim,
         gate_dropout=args.gate_dropout,
         gate_init_bias=args.gate_init_bias,
+        rta_gate_mode=args.rta_gate_mode,
+        use_prediction_gate_supervision=args.use_prediction_gate_supervision,
+        gate_oracle_temperature=args.gate_oracle_temperature,
+        gate_task_lambda=args.gate_task_lambda,
+        rta_pred_residual=args.rta_pred_residual,
+        gate_supervision_mode=args.gate_supervision_mode,
+        gate_margin=args.gate_margin,
     )
     base = shlex.split(args.python_bin) + [
         "run.py",
@@ -622,6 +723,10 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
         router_oracle_type = parse_cmd_flag_value(logged_cmd, "--router_oracle_type")
         gate_balance_lambda = parse_cmd_flag_value(logged_cmd, "--gate_balance_lambda")
         gate_target = parse_cmd_flag_value(logged_cmd, "--gate_target")
+        rta_gate_mode = parse_cmd_flag_value(logged_cmd, "--rta_gate_mode")
+        use_prediction_gate_supervision = parse_cmd_flag_value(logged_cmd, "--use_prediction_gate_supervision")
+        gate_oracle_temperature = parse_cmd_flag_value(logged_cmd, "--gate_oracle_temperature")
+        gate_task_lambda = parse_cmd_flag_value(logged_cmd, "--gate_task_lambda")
         router_missing_bias = parse_cmd_flag_value(logged_cmd, "--router_missing_bias")
         use_task_aware_router = parse_cmd_flag_value(logged_cmd, "--use_task_aware_router")
         use_reliability_task_gate = parse_cmd_flag_value(logged_cmd, "--use_reliability_task_gate")
@@ -672,6 +777,10 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
                 "router_missing_bias": _f(router_missing_bias, args.router_missing_bias),
                 "gate_balance_lambda": _f(gate_balance_lambda, args.gate_balance_lambda),
                 "gate_target": _f(gate_target, args.gate_target),
+                "rta_gate_mode": (rta_gate_mode or args.rta_gate_mode),
+                "use_prediction_gate_supervision": _i(use_prediction_gate_supervision, args.use_prediction_gate_supervision),
+                "gate_oracle_temperature": _f(gate_oracle_temperature, args.gate_oracle_temperature),
+                "gate_task_lambda": _f(gate_task_lambda, args.gate_task_lambda),
                 "use_task_aware_router": _i(use_task_aware_router, 0),
                 "use_reliability_task_gate": _i(use_reliability_task_gate, args.use_reliability_task_gate),
                 "export_anchor_weights": _i(export_anchor_weights, args.export_anchor_weights),
@@ -717,6 +826,10 @@ def build_summary_rows(run_records: List[Dict[str, str]], args, seed_list: List[
                 "router_missing_bias": _f(router_missing_bias, args.router_missing_bias),
                 "gate_balance_lambda": _f(gate_balance_lambda, args.gate_balance_lambda),
                 "gate_target": _f(gate_target, args.gate_target),
+                "rta_gate_mode": (rta_gate_mode or args.rta_gate_mode),
+                "use_prediction_gate_supervision": _i(use_prediction_gate_supervision, args.use_prediction_gate_supervision),
+                "gate_oracle_temperature": _f(gate_oracle_temperature, args.gate_oracle_temperature),
+                "gate_task_lambda": _f(gate_task_lambda, args.gate_task_lambda),
                 "use_task_aware_router": _i(use_task_aware_router, 0),
                 "use_reliability_task_gate": _i(use_reliability_task_gate, args.use_reliability_task_gate),
                 "export_anchor_weights": _i(export_anchor_weights, args.export_anchor_weights),
@@ -775,6 +888,8 @@ def build_agg(summary_df: pd.DataFrame) -> pd.DataFrame:
         "task_router_lambda", "center_aux_lambda",
         "router_oracle_temperature", "router_oracle_type",
         "gate_balance_lambda", "gate_target",
+        "rta_gate_mode", "use_prediction_gate_supervision",
+        "gate_oracle_temperature", "gate_task_lambda",
     ]
     agg_items = {}
     for m in ["MAE", "Corr", "Non0_acc_2", "Non0_F1_score", "Mult_acc_5", "Mult_acc_7"]:
@@ -874,7 +989,7 @@ def analyze_anchor_router(output_dir: str, missing_filter: Optional[List[float]]
         dataset = m.group("dataset") if m else "unknown"
         missing_raw = m.group("missing") if m else "nan"
         mode = m.group("mode") if m else "unknown"
-        if mode not in {"dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft"}:
+        if mode not in {"dynamic_soft", "dynamic_soft_moe", "dynamic_task_soft", "dynamic_rta", "dynamic_rta_pred"}:
             continue
         seed = m.group("seed") if m else "unknown"
 
@@ -1829,6 +1944,10 @@ def upsert_experiment_manifest(out_root: str, summary_df: pd.DataFrame, summary_
             "router_oracle_type": r.get("router_oracle_type", np.nan),
             "gate_balance_lambda": r.get("gate_balance_lambda", np.nan),
             "gate_target": r.get("gate_target", np.nan),
+            "rta_gate_mode": r.get("rta_gate_mode", np.nan),
+            "use_prediction_gate_supervision": r.get("use_prediction_gate_supervision", np.nan),
+            "gate_oracle_temperature": r.get("gate_oracle_temperature", np.nan),
+            "gate_task_lambda": r.get("gate_task_lambda", np.nan),
             "use_task_aware_router": r.get("use_task_aware_router", np.nan),
             "use_reliability_task_gate": r.get("use_reliability_task_gate", np.nan),
             "export_anchor_weights": r.get("export_anchor_weights", np.nan),
@@ -2030,6 +2149,13 @@ def main():
                 router_oracle_temperature=args.router_oracle_temperature,
                 router_oracle_type=args.router_oracle_type,
                 task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
+                rta_gate_mode=args.rta_gate_mode,
+                use_prediction_gate_supervision=args.use_prediction_gate_supervision,
+                gate_oracle_temperature=args.gate_oracle_temperature,
+                gate_task_lambda=args.gate_task_lambda,
+                rta_pred_residual=args.rta_pred_residual,
+                gate_supervision_mode=args.gate_supervision_mode,
+                gate_margin=args.gate_margin,
             )
             for (miss, mode) in quick_plan
             if (miss in missing_list) and (mode in modes)
@@ -2050,6 +2176,13 @@ def main():
                         router_oracle_temperature=args.router_oracle_temperature,
                         router_oracle_type=args.router_oracle_type,
                         task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
+                        rta_gate_mode=args.rta_gate_mode,
+                        use_prediction_gate_supervision=args.use_prediction_gate_supervision,
+                        gate_oracle_temperature=args.gate_oracle_temperature,
+                        gate_task_lambda=args.gate_task_lambda,
+                        rta_pred_residual=args.rta_pred_residual,
+                        gate_supervision_mode=args.gate_supervision_mode,
+                        gate_margin=args.gate_margin,
                     )
                 )
     else:
@@ -2063,6 +2196,13 @@ def main():
                 router_oracle_temperature=args.router_oracle_temperature,
                 router_oracle_type=args.router_oracle_type,
                 task_router_output_dir=(args.task_router_output_dir or os.path.join(out_root, "task_router_analysis")),
+                rta_gate_mode=args.rta_gate_mode,
+                use_prediction_gate_supervision=args.use_prediction_gate_supervision,
+                gate_oracle_temperature=args.gate_oracle_temperature,
+                gate_task_lambda=args.gate_task_lambda,
+                rta_pred_residual=args.rta_pred_residual,
+                gate_supervision_mode=args.gate_supervision_mode,
+                gate_margin=args.gate_margin,
             )
             for miss in missing_list
             for mode in modes
@@ -2113,6 +2253,7 @@ def main():
         "run_id", "protocol_tag", "fusion_center_mode",
         "task_router_lambda", "center_aux_lambda", "router_oracle_temperature", "router_oracle_type",
         "router_missing_bias", "gate_balance_lambda", "gate_target",
+        "rta_gate_mode", "use_prediction_gate_supervision", "gate_oracle_temperature", "gate_task_lambda",
         "use_task_aware_router", "use_reliability_task_gate",
         "export_anchor_weights", "export_task_router_info",
         "train_batch_size", "eval_batch_size", "test_batch_size",
@@ -2209,6 +2350,7 @@ def main():
             "train_drop_last", "eval_drop_last", "test_drop_last",
             "task_router_lambda", "center_aux_lambda", "router_oracle_temperature", "router_oracle_type",
             "gate_balance_lambda", "gate_target",
+            "rta_gate_mode", "use_prediction_gate_supervision", "gate_oracle_temperature", "gate_task_lambda",
             "MAE_mean", "MAE_std",
             "Corr_mean", "Corr_std",
             "Non0_acc_2_mean", "Non0_acc_2_std",

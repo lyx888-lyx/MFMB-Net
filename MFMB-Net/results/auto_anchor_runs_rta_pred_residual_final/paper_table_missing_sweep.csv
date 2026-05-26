@@ -1,0 +1,6 @@
+missing,text_MAE,text_Corr,text_Non0_acc_2,text_Non0_F1_score,audio_MAE,audio_Corr,audio_Non0_acc_2,audio_Non0_F1_score,vision_MAE,vision_Corr,vision_Non0_acc_2,vision_Non0_F1_score,dynamic_soft_MAE,dynamic_soft_Corr,dynamic_soft_Non0_acc_2,dynamic_soft_Non0_F1_score,dynamic_soft_moe_MAE,dynamic_soft_moe_Corr,dynamic_soft_moe_Non0_acc_2,dynamic_soft_moe_Non0_F1_score,dynamic_task_soft_MAE,dynamic_task_soft_Corr,dynamic_task_soft_Non0_acc_2,dynamic_task_soft_Non0_F1_score,dynamic_rta_MAE,dynamic_rta_Corr,dynamic_rta_Non0_acc_2,dynamic_rta_Non0_F1_score,dynamic_rta_pred_MAE,dynamic_rta_pred_Corr,dynamic_rta_pred_Non0_acc_2,dynamic_rta_pred_Non0_F1_score,dynamic_rta_pred_residual_MAE,dynamic_rta_pred_residual_Corr,dynamic_rta_pred_residual_Non0_acc_2,dynamic_rta_pred_residual_Non0_F1_score
+0.100000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.906800,0.718067,0.793200,0.792433
+0.200000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.935633,0.669967,0.784533,0.784367
+0.300000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1.022433,0.616767,0.748467,0.747533
+0.400000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1.153433,0.535233,0.708833,0.709500
+0.500000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1.187467,0.454233,0.694600,0.700967

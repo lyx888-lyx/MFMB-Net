@@ -1,0 +1,39 @@
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{c l c c c c c c}
+\toprule
+Missing & Method & MAE$\downarrow$ & Corr$\uparrow$ & Non0 Acc-2$\uparrow$ & Non0 F1$\uparrow$ & Mult Acc-5$\uparrow$ & Mult Acc-7$\uparrow$ \\ 
+\midrule
+0.1 & dynamic_soft & \textbf{0.8649} & \textbf{0.7350} & 0.8044 & 0.8039 & \textbf{0.4407} & \textbf{0.3790} \\ 
+0.1 & dynamic_soft_moe & 0.8976 & 0.7167 & 0.7881 & 0.7880 & \underline{0.4339} & \underline{0.3708} \\ 
+0.1 & dynamic_task_soft_tuned & \underline{0.8828} & \underline{0.7238} & \underline{0.8064} & \underline{0.8077} & 0.4300 & 0.3576 \\ 
+0.1 & dynamic_rta_feature & 0.9504 & 0.7209 & \textbf{0.8120} & \textbf{0.8119} & 0.3722 & 0.3358 \\ 
+0.1 & dynamic_rta_pred_residual & 0.9068 & 0.7181 & 0.7932 & 0.7924 & 0.4164 & 0.3581 \\ 
+0.2 & dynamic_soft & 1.0409 & 0.6402 & 0.7673 & 0.7667 & 0.3508 & 0.3071 \\ 
+0.2 & dynamic_soft_moe & 1.0541 & 0.6494 & 0.7520 & 0.7518 & 0.3611 & 0.3154 \\ 
+0.2 & dynamic_task_soft_tuned & 1.0936 & \underline{0.6547} & 0.7444 & 0.7444 & 0.3562 & 0.3090 \\ 
+0.2 & dynamic_rta_feature & \underline{0.9497} & 0.6546 & \underline{0.7754} & \underline{0.7760} & \underline{0.3936} & \underline{0.3566} \\ 
+0.2 & dynamic_rta_pred_residual & \textbf{0.9356} & \textbf{0.6700} & \textbf{0.7845} & \textbf{0.7844} & \textbf{0.4135} & \textbf{0.3615} \\ 
+0.3 & dynamic_soft & 1.0610 & 0.6053 & 0.7409 & 0.7395 & 0.3362 & 0.3047 \\ 
+0.3 & dynamic_soft_moe & \textbf{1.0008} & \underline{0.6148} & \textbf{0.7495} & \textbf{0.7497} & \underline{0.3421} & \textbf{0.3129} \\ 
+0.3 & dynamic_task_soft_tuned & 1.0803 & 0.5968 & 0.7332 & 0.7356 & 0.3187 & 0.2969 \\ 
+0.3 & dynamic_rta_feature & 1.1093 & 0.5847 & 0.7216 & 0.7284 & 0.2993 & 0.2672 \\ 
+0.3 & dynamic_rta_pred_residual & \underline{1.0224} & \textbf{0.6168} & \underline{0.7485} & \underline{0.7475} & \textbf{0.3532} & \underline{0.3124} \\ 
+0.4 & dynamic_soft & \underline{1.0921} & \textbf{0.5524} & \textbf{0.7266} & \textbf{0.7251} & \underline{0.3207} & \underline{0.2891} \\ 
+0.4 & dynamic_soft_moe & 1.1596 & 0.5264 & 0.7144 & 0.7211 & 0.3110 & 0.2697 \\ 
+0.4 & dynamic_task_soft_tuned & \textbf{1.0896} & 0.5194 & \underline{0.7256} & \underline{0.7248} & 0.3100 & \textbf{0.2920} \\ 
+0.4 & dynamic_rta_feature & 1.1803 & 0.5414 & 0.6951 & 0.7043 & 0.2483 & 0.2366 \\ 
+0.4 & dynamic_rta_pred & 1.1625 & \underline{0.5496} & 0.6966 & 0.7003 & \textbf{0.3251} & 0.2843 \\ 
+0.4 & dynamic_rta_pred_residual & 1.1534 & 0.5352 & 0.7088 & 0.7095 & 0.2750 & 0.2600 \\ 
+0.5 & dynamic_soft & 1.2988 & 0.3788 & 0.6240 & 0.6411 & 0.2153 & 0.2099 \\ 
+0.5 & dynamic_soft_moe & 1.3486 & 0.4490 & 0.6123 & 0.6578 & 0.2532 & 0.2410 \\ 
+0.5 & dynamic_task_soft_tuned & 1.2121 & \underline{0.4663} & 0.6855 & 0.6861 & 0.2575 & 0.2410 \\ 
+0.5 & dynamic_rta_feature & \underline{1.1886} & 0.4590 & 0.6865 & 0.6868 & \textbf{0.2886} & \textbf{0.2673} \\ 
+0.5 & dynamic_rta_pred & 1.2226 & \textbf{0.4780} & \textbf{0.7165} & \textbf{0.7149} & 0.2259 & 0.2187 \\ 
+0.5 & dynamic_rta_pred_residual & \textbf{1.1875} & 0.4542 & \underline{0.6946} & \underline{0.7010} & \underline{0.2653} & \underline{0.2570} \\ 
+\bottomrule
+\end{tabular}
+\caption{Ablation comparison for routing variants.}
+\label{tab:residual_ablation}
+\end{table*}

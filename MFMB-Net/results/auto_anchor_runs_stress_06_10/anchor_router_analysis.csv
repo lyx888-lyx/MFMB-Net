@@ -1,0 +1,6 @@
+dataset,missing,mode,mean_w_text,mean_w_audio,mean_w_vision,selected_text_ratio,selected_audio_ratio,selected_vision_ratio,entropy,corr_availability_text_w_text,corr_availability_audio_w_audio,corr_availability_vision_w_vision,seed_count,dominant_anchor,dominant_anchor_ratio,is_router_collapsed
+mosi,0.600000,dynamic_soft,0.665387,0.332226,0.002387,0.666667,0.333333,0.000000,0.025481,0.518491,0.459635,0.428479,3,text,0.665387,False
+mosi,0.700000,dynamic_soft,0.334016,0.333977,0.332007,0.333333,0.333333,0.333333,0.010031,0.508903,0.371230,0.403021,3,text,0.334016,False
+mosi,0.800000,dynamic_soft,0.333706,0.663148,0.003146,0.333333,0.666667,0.000000,0.023548,0.681516,0.559012,0.507279,3,audio,0.663148,False
+mosi,0.900000,dynamic_soft,0.650800,0.000611,0.348589,0.666667,0.000000,0.333333,0.066818,0.550918,0.304812,0.333583,3,text,0.650800,False
+mosi,1.000000,dynamic_soft,0.665270,0.334433,0.000297,0.666667,0.333333,0.000000,0.009768,0.891880,,,3,text,0.665270,False

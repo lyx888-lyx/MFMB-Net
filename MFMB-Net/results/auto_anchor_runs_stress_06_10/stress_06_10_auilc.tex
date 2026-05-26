@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Method & MAE-AUILC & Corr-AUILC & Non0 Acc-2-AUILC & Non0 F1-AUILC & Mult Acc-5-AUILC & Mult Acc-7-AUILC \\
+\midrule
+Text center & \underline{0.5564} & 0.0794 & \textbf{0.2279} & \textbf{0.2418} & \textbf{0.0813} & \textbf{0.0789} \\
+Vision center & 0.5630 & \textbf{0.0922} & \underline{0.2234} & \underline{0.2400} & \underline{0.0800} & 0.0777 \\
+Dynamic Soft & 0.5816 & 0.0664 & 0.2016 & 0.2363 & 0.0713 & 0.0703 \\
+Ours & \textbf{0.5540} & \underline{0.0800} & 0.2231 & 0.2393 & 0.0792 & \underline{0.0778} \\
+\bottomrule
+\end{tabular}
+\caption{AUILC over missing rates 0.6--1.0. Lower is better for MAE-AUILC, higher is better for the others.}
+\label{tab:stress_auilc_06_10}
+\end{table}

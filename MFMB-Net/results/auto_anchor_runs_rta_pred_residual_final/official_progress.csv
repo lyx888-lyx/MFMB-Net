@@ -1,0 +1,6 @@
+missing,mode,completed_seeds,expected_seeds,status,need_rerun,source_phase,log_path
+0.1,dynamic_rta_pred_residual,3,3,completed,0,full,"results/auto_anchor_runs_rta_pred_residual_final/logs/mosi_m0.1_dynamic_rta_pred_residual_seed111,1111,11111_trainDL1_evalDL0_testDL0_full.log"
+0.2,dynamic_rta_pred_residual,3,3,completed,0,full,"results/auto_anchor_runs_rta_pred_residual_final/logs/mosi_m0.2_dynamic_rta_pred_residual_seed111,1111,11111_trainDL1_evalDL0_testDL0_full.log"
+0.3,dynamic_rta_pred_residual,3,3,completed,0,full,"results/auto_anchor_runs_rta_pred_residual_final/logs/mosi_m0.3_dynamic_rta_pred_residual_seed111,1111,11111_trainDL1_evalDL0_testDL0_full.log"
+0.4,dynamic_rta_pred_residual,3,3,completed,0,full,"results/auto_anchor_runs_rta_pred_residual_final/logs/mosi_m0.4_dynamic_rta_pred_residual_seed111,1111,11111_trainDL1_evalDL0_testDL0_full.log"
+0.5,dynamic_rta_pred_residual,3,3,completed,0,full,"results/auto_anchor_runs_rta_pred_residual_final/logs/mosi_m0.5_dynamic_rta_pred_residual_seed111,1111,11111_trainDL1_evalDL0_testDL0_full.log"

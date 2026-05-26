@@ -1,0 +1,3 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.400000,dynamic_rta_pred_residual,1.082600,dynamic_rta_pred_residual,0.541800,dynamic_rta_pred_residual,0.734800,dynamic_rta_pred_residual,0.734500
+0.500000,dynamic_rta_pred_residual,1.159900,dynamic_rta_pred_residual,0.461500,dynamic_rta_pred_residual,0.693600,dynamic_rta_pred_residual,0.693200

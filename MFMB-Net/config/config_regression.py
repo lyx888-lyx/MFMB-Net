@@ -38,7 +38,7 @@ class ConfigRegression():
         self.args = Storage(merged)
     
     def __datasetCommonParams(self):
-        root_dataset_dir = '/root/rivermind-data/MMSA/Datasets'
+        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
         tmp = {
             'mosi':{
                 'aligned': {
@@ -196,11 +196,18 @@ class ConfigRegression():
                 'task_router_output_dir': 'results/task_router_analysis',
                 # Reliability-gated task-aware routing options (dynamic_rta)
                 'use_reliability_task_gate': 0,
+                'rta_gate_mode': 'learned',
                 'gate_hidden_dim': 32,
                 'gate_dropout': 0.1,
-                'gate_init_bias': 0.0,
+                'gate_init_bias': -2.0,
                 'gate_balance_lambda': 0.0,
                 'gate_target': 0.5,
+                'use_prediction_gate_supervision': 1,
+                'gate_oracle_temperature': 0.8,
+                'gate_task_lambda': 0.02,
+                'rta_pred_residual': 0,
+                'gate_supervision_mode': 'full',
+                'gate_margin': 0.05,
             },
             # dataset
             'datasetParas':{

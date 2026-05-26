@@ -326,6 +326,15 @@ class MFMB_NET():
                             disagreement_t = router_info.get('router_disagreement', None)
                             pred_std_t = router_info.get('pred_std', None)
                             pred_range_t = router_info.get('pred_range', None)
+                            pred_rel_t = router_info.get('pred_rel', None)
+                            pred_task_route_t = router_info.get('pred_task_route', None)
+                            abs_pred_rel_task_t = router_info.get('abs_pred_rel_task', None)
+                            gate_oracle_t = router_info.get('gate_oracle', None)
+                            gate_oracle_label_t = router_info.get('gate_oracle_label', None)
+                            err_rel_t = router_info.get('err_rel', None)
+                            err_task_t = router_info.get('err_task', None)
+                            abs_err_diff_t = router_info.get('abs_err_diff', None)
+                            gate_margin_mask_t = router_info.get('gate_margin_mask', None)
 
                             task_rw = task_rw_t.detach().cpu().numpy() if task_rw_t is not None else None
                             task_si = task_si_t.detach().cpu().numpy() if task_si_t is not None else None
@@ -336,6 +345,15 @@ class MFMB_NET():
                             disagreement = disagreement_t.detach().cpu().numpy().reshape(-1) if disagreement_t is not None else None
                             pred_std = pred_std_t.detach().cpu().numpy().reshape(-1) if pred_std_t is not None else None
                             pred_range = pred_range_t.detach().cpu().numpy().reshape(-1) if pred_range_t is not None else None
+                            pred_rel = pred_rel_t.detach().cpu().numpy().reshape(-1) if pred_rel_t is not None else None
+                            pred_task_route = pred_task_route_t.detach().cpu().numpy().reshape(-1) if pred_task_route_t is not None else None
+                            abs_pred_rel_task = abs_pred_rel_task_t.detach().cpu().numpy().reshape(-1) if abs_pred_rel_task_t is not None else None
+                            gate_oracle = gate_oracle_t.detach().cpu().numpy() if gate_oracle_t is not None else None
+                            gate_oracle_label = gate_oracle_label_t.detach().cpu().numpy().reshape(-1) if gate_oracle_label_t is not None else None
+                            err_rel = err_rel_t.detach().cpu().numpy().reshape(-1) if err_rel_t is not None else None
+                            err_task = err_task_t.detach().cpu().numpy().reshape(-1) if err_task_t is not None else None
+                            abs_err_diff = abs_err_diff_t.detach().cpu().numpy().reshape(-1) if abs_err_diff_t is not None else None
+                            gate_margin_mask = gate_margin_mask_t.detach().cpu().numpy().reshape(-1) if gate_margin_mask_t is not None else None
 
                             for i in range(len(yp)):
                                 row = {
@@ -382,6 +400,43 @@ class MFMB_NET():
                                         'router_disagreement': float(disagreement[i]) if disagreement is not None else np.nan,
                                         'pred_std': float(pred_std[i]) if pred_std is not None else np.nan,
                                         'pred_range': float(pred_range[i]) if pred_range is not None else np.nan,
+                                    })
+                                if pred_rel is not None and pred_task_route is not None:
+                                    row.update({
+                                        'pred_rel': float(pred_rel[i]),
+                                        'pred_task': float(pred_task_route[i]),
+                                        'abs_pred_rel_task': float(abs_pred_rel_task[i]) if abs_pred_rel_task is not None else np.nan,
+                                    })
+                                if err_rel is not None and err_task is not None:
+                                    row.update({
+                                        'err_rel': float(err_rel[i]),
+                                        'err_task': float(err_task[i]),
+                                        'abs_err_diff': float(abs_err_diff[i]) if abs_err_diff is not None else float(abs(err_rel[i] - err_task[i])),
+                                        'gate_margin_mask': int(gate_margin_mask[i] > 0.5) if gate_margin_mask is not None else int(abs(err_rel[i] - err_task[i]) > float(getattr(self.args, 'gate_margin', 0.05))),
+                                    })
+                                if gate_oracle is not None:
+                                    go_rel = float(gate_oracle[i, 0]) if gate_oracle.ndim == 2 else np.nan
+                                    go_task = float(gate_oracle[i, 1]) if gate_oracle.ndim == 2 else np.nan
+                                    g_label = int(gate_oracle_label[i]) if gate_oracle_label is not None else int(np.argmax([go_rel, go_task]))
+                                    g_pred_label = 1 if (gate_task is not None and float(gate_task[i]) >= 0.5) else 0
+                                    row.update({
+                                        'oracle_gate_rel': go_rel,
+                                        'oracle_gate_task': go_task,
+                                        'gate_oracle_match': int(g_pred_label == g_label),
+                                    })
+                                elif pred_rel is not None and pred_task_route is not None:
+                                    # TEST forward does not use labels; compute oracle gate offline for diagnostics.
+                                    er = abs(float(pred_rel[i]) - float(yt[i]))
+                                    et = abs(float(pred_task_route[i]) - float(yt[i]))
+                                    temp = max(float(getattr(self.args, 'gate_oracle_temperature', 0.8)), 1e-6)
+                                    scores = np.exp(-np.array([er, et], dtype=np.float64) / temp)
+                                    scores = scores / np.clip(scores.sum(), 1e-8, None)
+                                    g_label = int(np.argmax(scores))
+                                    g_pred_label = 1 if (gate_task is not None and float(gate_task[i]) >= 0.5) else 0
+                                    row.update({
+                                        'oracle_gate_rel': float(scores[0]),
+                                        'oracle_gate_task': float(scores[1]),
+                                        'gate_oracle_match': int(g_pred_label == g_label),
                                     })
 
                                 task_router_rows.append(row)

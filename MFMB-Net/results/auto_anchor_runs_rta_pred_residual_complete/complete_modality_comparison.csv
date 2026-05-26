@@ -1,0 +1,7 @@
+missing,method,MAE,Corr,Non0_acc_2,Non0_F1,Mult_acc_5,Mult_acc_7,source
+0.0,text,,,,,,,not_available
+0.0,audio,,,,,,,not_available
+0.0,vision,,,,,,,not_available
+0.0,dynamic_soft,,,,,,,not_available
+0.0,dynamic_task_soft_tuned,,,,,,,not_available
+0.0,dynamic_rta_pred_residual,0.881133,0.764367,0.829267,0.829233,0.4213,0.3712,rta_pred_residual_complete_agg

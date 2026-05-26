@@ -1,0 +1,6 @@
+missing,best_MAE_method,best_MAE,best_Corr_method,best_Corr,best_Non0_acc_2_method,best_Non0_acc_2,best_Non0_F1_method,best_Non0_F1
+0.100000,dynamic_rta_pred_residual,0.906800,dynamic_rta_pred_residual,0.718067,dynamic_rta_pred_residual,0.793200,dynamic_rta_pred_residual,0.792433
+0.200000,dynamic_rta_pred_residual,0.935633,dynamic_rta_pred_residual,0.669967,dynamic_rta_pred_residual,0.784533,dynamic_rta_pred_residual,0.784367
+0.300000,dynamic_rta_pred_residual,1.022433,dynamic_rta_pred_residual,0.616767,dynamic_rta_pred_residual,0.748467,dynamic_rta_pred_residual,0.747533
+0.400000,dynamic_rta_pred_residual,1.153433,dynamic_rta_pred_residual,0.535233,dynamic_rta_pred_residual,0.708833,dynamic_rta_pred_residual,0.709500
+0.500000,dynamic_rta_pred_residual,1.187467,dynamic_rta_pred_residual,0.454233,dynamic_rta_pred_residual,0.694600,dynamic_rta_pred_residual,0.700967

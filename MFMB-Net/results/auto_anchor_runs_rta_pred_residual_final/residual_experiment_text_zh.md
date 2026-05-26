@@ -1,0 +1,3 @@
+在统一 full-test 协议（train_drop_last=1, eval_drop_last=0, test_drop_last=0, MOSI test=686）下，我们对比了固定中心、Dynamic Soft、Task-aware Dynamic 以及提出的残差预测级 RTA。结果表明，Ours 在 0.1~0.5 区间取得了最低的平均 MAE，并在高缺失区间对 Dynamic Soft 的退化表现出更好的修复能力。与此同时，fixed vision 在多个缺失点上的排名仍然具有竞争力，使得 Ours 并非在所有缺失率和所有指标上都绝对最优。
+
+这说明残差预测级门控在“稳定主干 + 任务修正”方向上是有效的：它避免了 feature-level 直接混合的不稳定，并在高缺失样本上引入更有针对性的校正。然而，我们也观察到 average rank 上 fixed vision 仍然较强，提示当前方法的优势主要体现在平均误差控制与高缺失鲁棒性，而不是全指标统治。作为对照，MoE 在本任务设置下波动较大，适合作为消融参考而非主线方案。

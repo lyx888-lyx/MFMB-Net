@@ -1,0 +1,9 @@
+missing,rta_gate_mode,seed,MAE,Corr,Non0_acc_2,Non0_F1_score,Mult_acc_5,Mult_acc_7,mean_g_task,mean_g_rel,log_path
+0.400000,fixed_half,111,1.271100,0.337200,0.638700,0.646400,0.233200,0.217200,,,results/auto_anchor_runs_rta_gate_ablation/mode_fixed_half/logs/mosi_m0.4_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.400000,force_rel,111,1.103300,0.544400,0.725600,0.731300,0.284300,0.271100,,,results/auto_anchor_runs_rta_gate_ablation/mode_force_rel/logs/mosi_m0.4_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.400000,force_task,111,1.054900,0.550900,0.736300,0.736800,0.328000,0.312000,,,results/auto_anchor_runs_rta_gate_ablation/mode_force_task/logs/mosi_m0.4_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.400000,learned,111,1.058500,0.542100,0.727100,0.728300,0.326500,0.304700,,,results/auto_anchor_runs_rta_gate_ablation/mode_learned/logs/mosi_m0.4_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.500000,fixed_half,111,1.123500,0.516500,0.722600,0.721000,0.287200,0.278400,,,results/auto_anchor_runs_rta_gate_ablation/mode_fixed_half/logs/mosi_m0.5_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.500000,force_rel,111,1.163600,0.456700,0.707300,0.707600,0.307600,0.269700,,,results/auto_anchor_runs_rta_gate_ablation/mode_force_rel/logs/mosi_m0.5_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.500000,force_task,111,1.124900,0.482800,0.705800,0.707200,0.272600,0.262400,,,results/auto_anchor_runs_rta_gate_ablation/mode_force_task/logs/mosi_m0.5_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
+0.500000,learned,111,1.315700,0.465000,0.617400,0.633300,0.182200,0.180800,,,results/auto_anchor_runs_rta_gate_ablation/mode_learned/logs/mosi_m0.5_dynamic_rta_seed111_trainDL1_evalDL0_testDL0_full.log
