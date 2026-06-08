@@ -209,13 +209,27 @@ def MMDataLoader(args):
         args.seq_lens = datasets['train'].get_seq_len() 
 
     dataLoader = {
-        ds: DataLoader(datasets[ds],
-                       batch_size=args.batch_size,
-                       num_workers=args.num_workers,
-                       shuffle=True,
-                       drop_last=True
-                       )
-        for ds in datasets.keys()
+        'train': DataLoader(
+            datasets['train'],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            shuffle=True,
+            drop_last=True,
+        ),
+        'valid': DataLoader(
+            datasets['valid'],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            shuffle=False,
+            drop_last=False,
+        ),
+        'test': DataLoader(
+            datasets['test'],
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            shuffle=False,
+            drop_last=False,
+        ),
     }
     
     return dataLoader

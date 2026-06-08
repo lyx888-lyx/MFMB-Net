@@ -30,9 +30,13 @@ def run(args):
     '''
     feature_dims(768, 5, 20)
     '''
+    save_tag = getattr(args, 'exp_tag', '') or ('mide' if getattr(args, 'mide_enable', False) else 'baseline')
+    missing_tag = f"m{getattr(args, 'missing_rate', (0,))[0]:.1f}" if hasattr(args, 'missing_rate') else 'm0.0'
+    args.model_save_dir = os.path.join(args.model_save_dir, save_tag, missing_tag)
     if not os.path.exists(args.model_save_dir):
         os.makedirs(args.model_save_dir)
-    args.model_save_path = os.path.join(args.model_save_dir, f'{args.modelName}-{args.datasetName}-{args.train_mode}.pth')
+    ckpt_name = f'{args.modelName}-{args.datasetName}-{args.train_mode}-{save_tag}-{missing_tag}-seed{args.seed}.pth'
+    args.model_save_path = os.path.join(args.model_save_dir, ckpt_name)
     # indicate used gpu
     if len(args.gpu_ids) == 0 and torch.cuda.is_available():
         # load free-most gpu
@@ -49,7 +53,11 @@ def run(args):
                 dst_gpu_id = g_id
         print(f'Find gpu: {dst_gpu_id}, use memory: {min_mem_used}!')
         logger.info(f'Find gpu: {dst_gpu_id}, with memory: {min_mem_used} left!')
-        args.gpu_ids.append(dst_gpu_id)
+        # When CUDA_VISIBLE_DEVICES remaps GPUs, always use logical device 0.
+        if os.environ.get('CUDA_VISIBLE_DEVICES', '').strip() != '':
+            args.gpu_ids.append(0)
+        else:
+            args.gpu_ids.append(dst_gpu_id)
     # device
     using_cuda = len(args.gpu_ids) > 0 and torch.cuda.is_available()
     logger.info("Let's use %d GPUs!" % len(args.gpu_ids))
@@ -93,7 +101,8 @@ def run(args):
     return results
 
 def run_normal(args):
-    args.res_save_dir = os.path.join(args.res_save_dir, 'normals')
+    subdir = args.exp_tag if args.exp_tag else ('mide' if getattr(args, 'mide_enable', False) else 'baseline')
+    args.res_save_dir = os.path.join(args.res_save_dir, subdir)
     init_args = args
     model_results = []
     seeds = args.seeds
@@ -104,6 +113,8 @@ def run_normal(args):
         # load config
         config = ConfigRegression(args)
         args = config.get_config()
+        if getattr(init_args, 'mide_enable', False):
+            args.mide_enable = True
         if i == 0 and args.data_missing:
             missing_rate = str(args.missing_rate[0])
         setup_seed(seed)
@@ -169,6 +180,14 @@ def parse_args():
     parser.add_argument('--gpu_ids', type=list, default=[],
                         help='indicates the gpus will be used. If none, the most-free gpu will be used!')
     parser.add_argument('--missing', type=float, default=0.0)
+    parser.add_argument('--data_root', type=str, default=None,
+                        help='Dataset root directory. Overrides MFMB_DATA_ROOT env and default path.')
+    parser.add_argument('--mide_enable', action='store_true', default=False,
+                        help='Enable MIDE module.')
+    parser.add_argument('--exp_tag', type=str, default='',
+                        help='Experiment tag for result/model subdirectories.')
+    parser.add_argument('--mide_tag', type=str, default='',
+                        help='Optional suffix tag for MIDE result CSV rows.')
     return parser.parse_args()
 
 if __name__ == '__main__':

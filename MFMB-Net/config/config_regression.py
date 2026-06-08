@@ -5,6 +5,7 @@ from utils.functions import Storage
 
 class ConfigRegression():
     def __init__(self, args):
+        self._data_root_override = getattr(args, 'data_root', None) or os.environ.get('MFMB_DATA_ROOT')
         # hyper parameters for models
         HYPER_MODEL_MAP = {
             # missing-task
@@ -33,7 +34,7 @@ class ConfigRegression():
                             ))
     
     def __datasetCommonParams(self):
-        root_dataset_dir = '/sharefile/lyx_model/MMSA/Datasets'
+        root_dataset_dir = self._data_root_override or '/sharefile/lyx_model/MMSA/Datasets'
         tmp = {
             'mosi':{
                 'aligned': {
@@ -161,6 +162,26 @@ class ConfigRegression():
                 'fusionModule': 'c_gate',
                 'recloss_type': 'combine',
                 'without_generator': False,
+
+                # MIDE (Modality Information Density Estimation)
+                'mide_enable': False,
+                'mide_tau': 1.0,
+                'mide_margin': 0.05,
+                'mide_contrib_eps': 0.01,
+                'mide_avail_high': 0.8,
+                'mide_avail_low': 0.35,
+                'mide_contrib_small': 0.01,
+                'mide_contrib_pos': 0.02,
+                'mide_keep_density_target': 0.45,
+                'mide_lambda_uni': 0.1,
+                'mide_lambda_uce': 0.15,
+                'mide_lambda_rank': 0.05,
+                'mide_lambda_noinfo': 0.03,
+                'mide_lambda_poll': 0.05,
+                'mide_lambda_sparse': 0.03,
+                'mide_warmup_epochs': 1,
+                'mide_head_hidden': 32,
+                'mide_head_dropout': 0.1,
 
                 'early_stop': 6,
                 'use_bert': True,
