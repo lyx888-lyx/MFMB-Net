@@ -32,6 +32,30 @@ class ConfigRegression():
                             **commonArgs,
                             **HYPER_MODEL_MAP[model_name]()['datasetParas'][dataset_name],
                             ))
+        self._apply_runtime_overrides(self.args, args)
+    
+    def _apply_runtime_overrides(self, cfg, cli_args):
+        if getattr(cli_args, 'batch_size_override', None):
+            cfg.batch_size = cli_args.batch_size_override
+        if getattr(cli_args, 'lr_other_override', None):
+            cfg.learning_rate_other = cli_args.lr_other_override
+        if getattr(cli_args, 'lr_bert_override', None):
+            cfg.learning_rate_bert = cli_args.lr_bert_override
+        mide_keys = [
+            'mide_variant', 'mide_tau_uni', 'mide_tau_loo', 'mide_tau_p',
+            'mide_beta_uni', 'mide_beta_loo', 'mide_margin', 'mide_contrib_eps',
+            'mide_pos_threshold', 'mide_neg_threshold', 'mide_avail_high', 'mide_avail_low',
+            'mide_u_low', 'mide_keep_density_target', 'mide_d_floor_min',
+            'mide_aux_start_epoch', 'mide_full_start_epoch', 'mide_gate_start_epoch',
+            'mide_lambda_uni', 'mide_lambda_util_bce', 'mide_lambda_rank',
+            'mide_lambda_poll_bce', 'mide_lambda_noinfo', 'mide_lambda_poll',
+            'mide_lambda_sparse', 'mide_lambda_sep', 'mide_head_hidden', 'mide_head_dropout',
+            'mide_sep_eps', 'mide_sep_margin',
+        ]
+        for k in mide_keys:
+            v = getattr(cli_args, k, None)
+            if v is not None:
+                cfg[k] = v
     
     def __datasetCommonParams(self):
         root_dataset_dir = self._data_root_override or '/sharefile/lyx_model/MMSA/Datasets'
@@ -165,23 +189,44 @@ class ConfigRegression():
 
                 # MIDE (Modality Information Density Estimation)
                 'mide_enable': False,
-                'mide_tau': 1.0,
+                'mide_variant': 'split_aup',
+                'mide_tau_uni': 1.0,
+                'mide_tau_loo': 0.6,
+                'mide_tau_p': 0.5,
+                'mide_beta_uni': 0.4,
+                'mide_beta_loo': 0.6,
                 'mide_margin': 0.05,
                 'mide_contrib_eps': 0.01,
+                'mide_pos_threshold': 0.03,
+                'mide_neg_threshold': 0.01,
                 'mide_avail_high': 0.8,
                 'mide_avail_low': 0.35,
-                'mide_contrib_small': 0.01,
-                'mide_contrib_pos': 0.02,
-                'mide_keep_density_target': 0.45,
-                'mide_lambda_uni': 0.1,
-                'mide_lambda_uce': 0.15,
-                'mide_lambda_rank': 0.05,
-                'mide_lambda_noinfo': 0.03,
-                'mide_lambda_poll': 0.05,
-                'mide_lambda_sparse': 0.03,
-                'mide_warmup_epochs': 1,
+                'mide_u_low': 0.35,
+                'mide_keep_density_target': 0.55,
+                'mide_d_floor_min': 0.65,
+                'mide_aux_start_epoch': 2,
+                'mide_full_start_epoch': 4,
+                'mide_gate_start_epoch': 2,
+                'mide_lambda_uni': 0.08,
+                'mide_lambda_util_bce': 0.08,
+                'mide_lambda_rank': 0.03,
+                'mide_lambda_poll_bce': 0.03,
+                'mide_lambda_noinfo': 0.02,
+                'mide_lambda_poll': 0.03,
+                'mide_lambda_sparse': 0.02,
+                'mide_lambda_sep': 0.01,
+                'mide_sep_eps': 0.02,
+                'mide_sep_margin': 0.05,
                 'mide_head_hidden': 32,
                 'mide_head_dropout': 0.1,
+                # old variant compat
+                'mide_tau': 1.0,
+                'mide_warmup_epochs': 1,
+                'mide_lambda_uce': 0.15,
+                'mide_contrib_small': 0.01,
+                'mide_contrib_pos': 0.02,
+                'use_amp': False,
+                'save_metric': 'loss',
 
                 'early_stop': 6,
                 'use_bert': True,

@@ -106,6 +106,7 @@ class MFMB_NET(nn.Module):
                 'labels': labels,
                 'epoch': epoch,
                 'training': training,
+                'mide_variant': getattr(self.args, 'mide_variant', 'split_aup'),
                 'text_missing_mask': missing_mask_t,
                 'audio_missing_mask': missing_mask_a,
                 'vision_missing_mask': missing_mask_v,

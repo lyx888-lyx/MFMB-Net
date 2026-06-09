@@ -83,8 +83,9 @@ def run(args):
     # do train
     atio.do_train(model, dataloader)
     # load pretrained model
-    assert os.path.exists(args.model_save_path)
-    model.load_state_dict(torch.load(args.model_save_path))
+    if not os.path.exists(args.model_save_path):
+        raise FileNotFoundError(f'No checkpoint saved at {args.model_save_path}')
+    model.load_state_dict(torch.load(args.model_save_path, map_location=device))
     model.to(device)
     # do test
     if args.is_tune:
@@ -115,6 +116,8 @@ def run_normal(args):
         args = config.get_config()
         if getattr(init_args, 'mide_enable', False):
             args.mide_enable = True
+        if getattr(init_args, 'use_amp', False):
+            args.use_amp = True
         if i == 0 and args.data_missing:
             missing_rate = str(args.missing_rate[0])
         setup_seed(seed)
@@ -148,7 +151,11 @@ def run_normal(args):
     logger.info('Results are added to %s...' %(save_path))
 
 def set_log(args):
-    log_file_path = f'logs/{args.modelName}-{args.datasetName}.log'
+    exp_tag = getattr(args, 'exp_tag', '') or ('mide' if getattr(args, 'mide_enable', False) else 'baseline')
+    missing = getattr(args, 'missing', 0.0)
+    log_dir = os.path.join('results', 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(log_dir, f'{exp_tag}_m{missing:.1f}.log')
     # set logging
     logger = logging.getLogger() 
     logger.setLevel(logging.DEBUG)
@@ -161,7 +168,29 @@ def set_log(args):
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter_file)
     logger.addHandler(fh)
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(formatter_file)
+    logger.addHandler(sh)
     return logger
+
+def _add_mide_cli(parser):
+    parser.add_argument('--mide_variant', type=str, default=None,
+                        choices=['old', 'split_aup', 'split_aup_plus'])
+    mide_floats = [
+        'mide_tau_uni', 'mide_tau_loo', 'mide_tau_p', 'mide_beta_uni', 'mide_beta_loo',
+        'mide_margin', 'mide_contrib_eps', 'mide_pos_threshold', 'mide_neg_threshold',
+        'mide_avail_high', 'mide_avail_low', 'mide_u_low', 'mide_keep_density_target',
+        'mide_d_floor_min', 'mide_lambda_uni', 'mide_lambda_util_bce', 'mide_lambda_rank',
+        'mide_lambda_poll_bce', 'mide_lambda_noinfo', 'mide_lambda_poll',
+        'mide_lambda_sparse', 'mide_lambda_sep', 'mide_head_hidden', 'mide_head_dropout',
+        'mide_sep_eps', 'mide_sep_margin',
+    ]
+    for name in mide_floats:
+        parser.add_argument(f'--{name}', type=float, default=None)
+    mide_ints = ['mide_aux_start_epoch', 'mide_full_start_epoch', 'mide_gate_start_epoch']
+    for name in mide_ints:
+        parser.add_argument(f'--{name}', type=int, default=None)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -186,13 +215,21 @@ def parse_args():
                         help='Enable MIDE module.')
     parser.add_argument('--exp_tag', type=str, default='',
                         help='Experiment tag for result/model subdirectories.')
-    parser.add_argument('--mide_tag', type=str, default='',
-                        help='Optional suffix tag for MIDE result CSV rows.')
+    parser.add_argument('--batch_size_override', type=int, default=None)
+    parser.add_argument('--lr_other_override', type=float, default=None)
+    parser.add_argument('--lr_bert_override', type=float, default=None)
+    parser.add_argument('--amp', action='store_true', default=False,
+                        help='Enable automatic mixed precision training.')
+    parser.add_argument('--save_metric', type=str, default='loss',
+                        choices=['loss', 'corr', 'has0'],
+                        help='Primary checkpoint metric (default loss for comparability).')
+    _add_mide_cli(parser)
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
     args.missing_rate = tuple([args.missing, args.missing, args.missing])
+    args.use_amp = args.amp
     global logger; logger = set_log(args)
     args.seeds = [111, 1111, 11111]
     run_normal(args)

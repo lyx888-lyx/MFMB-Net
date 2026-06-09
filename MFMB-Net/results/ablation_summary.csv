@@ -1,0 +1,13 @@
+exp_tag,missing,best_checkpoint_type,Has0_acc_2,Non0_acc_2,MAE,Corr,Loss
+baseline_fixed,0.0,best_by_loss,81.15,82.57,75.11,78.15,74.48
+baseline_fixed,0.3,best_by_loss,74.59,75.71,102.85,60.97,101.4
+baseline_fixed,0.5,best_by_loss,67.06,67.58,119.44,46.36,118.05
+mide_old_repro,0.0,best_by_loss,80.03,81.3,129.35,77.77,129.5
+mide_old_repro,0.3,best_by_loss,71.23,71.8,109.6,57.05,108.37
+mide_old_repro,0.5,best_by_loss,67.88,68.75,131.22,45.66,130.11
+mide_split_aup,0.0,best_by_loss,80.9,81.61,88.52,77.71,88.45
+mide_split_aup,0.3,best_by_loss,73.13,73.22,102.77,59.76,101.78
+mide_split_aup,0.5,best_by_loss,64.04,65.09,146.18,47.08,145.29
+mide_split_plus,0.0,best_by_loss,81.0,82.42,87.44,77.7,87.39
+mide_split_plus,0.3,best_by_loss,73.76,74.24,116.9,60.88,114.87
+mide_split_plus,0.5,best_by_loss,67.3,67.78,152.46,46.51,151.04
